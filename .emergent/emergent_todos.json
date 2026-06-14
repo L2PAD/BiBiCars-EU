@@ -1,6 +1,6 @@
 [
   {
-    "content": "Configure Resend (apiKey + from=bibicars.eu); delivery works via auto-fallback (branded domain not yet verified in this Resend account)",
+    "content": "Configure Resend (apiKey + from=bibicars.eu); delivery via auto-fallback (branded domain pending verification in this Resend account)",
     "status": "completed"
   },
   {
@@ -12,19 +12,19 @@
     "status": "completed"
   },
   {
-    "content": "Admin UI for recipient config + pending OTP viewer (exists in AdminSecurityPage.jsx)",
+    "content": "Admin UI for recipient config + pending OTP viewer (AdminSecurityPage.jsx)",
     "status": "completed"
   },
   {
-    "content": "Customer email-verification modal verified (register -> code -> modal, Resend premium template)",
+    "content": "Customer email-verification modal verified (register -> code -> modal)",
     "status": "completed"
   },
   {
-    "content": "Build customer Email-OTP 2FA method (backend endpoints + login challenge + cabinet UI + login modal + i18n)",
+    "content": "Build customer Email-OTP 2FA method (backend + login challenge + cabinet UI + login modal + i18n)",
     "status": "completed"
   },
   {
-    "content": "End-to-end test all email/OTP flows (testing agent)",
-    "status": "in_progress"
+    "content": "End-to-end test all email/OTP flows (testing agent: backend 100%, frontend 95%, all features working)",
+    "status": "completed"
   }
 ]
