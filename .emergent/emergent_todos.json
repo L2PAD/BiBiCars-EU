@@ -1,34 +1,22 @@
 [
   {
-    "content": "Confirm full deployment is accessible (storefront, staff login, customer cabinet, admin)",
+    "content": "Prove deployed code is 1:1 with GitHub (git diff) + fix admin login confusion",
     "status": "completed"
   },
   {
-    "content": "Security: move hardcoded secrets to env (Ringostat creds, JWT_SECRET, site-track key) + blank source defaults",
+    "content": "Smoke-test public storefront + CRM + security endpoints (physical proof)",
     "status": "completed"
   },
   {
-    "content": "Configure Stripe with provided test keys in integration_configs (DB source of truth) + enable",
-    "status": "completed"
+    "content": "Comprehensive end-to-end audit via testing agent (all 4 roles, RBAC/security, 2FA, Stripe, Ringostat, key CRM flows)",
+    "status": "in_progress"
   },
   {
-    "content": "Register Stripe webhook for preview domain + verify Test Connection (live ping)",
-    "status": "completed"
+    "content": "Fix any issues found in the audit",
+    "status": "pending"
   },
   {
-    "content": "Seed staff accounts (admin/manager/team_lead) via env passwords — logins verified",
-    "status": "completed"
-  },
-  {
-    "content": "Verify integrations health + smoke-test all 4 role logins & key endpoints",
-    "status": "completed"
-  },
-  {
-    "content": "Gitignore .env files (secrets protection)",
-    "status": "completed"
-  },
-  {
-    "content": "Final production-readiness summary",
-    "status": "completed"
+    "content": "Final audit report with physical confirmation",
+    "status": "pending"
   }
 ]
