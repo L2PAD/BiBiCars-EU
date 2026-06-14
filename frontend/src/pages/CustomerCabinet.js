@@ -102,6 +102,52 @@ const STATUS_TO_STEP = {
   'completed': 4,
 };
 
+// ── Premium 5-step process tracker (dark-theme native) ──────────────────
+// Brand amber #FEAE00 → emerald #10B981 progress, used inside the
+// "Process Progress" card on the cabinet home. Node centres sit at
+// 10/30/50/70/90% of the row, so the connector spans left-[10%]→right-[10%].
+const ProcessTracker = ({ currentStep, t }) => {
+  const total = PROCESS_STEPS.length;
+  const fillPct = total > 1 ? (Math.max(0, Math.min(currentStep, total - 1)) / (total - 1)) * 80 : 0;
+  return (
+    <div className="relative pt-1 pb-1" data-testid="process-tracker">
+      {/* track + animated fill (sit behind the nodes) */}
+      <div className="absolute top-[22px] left-[10%] right-[10%] h-[3px] rounded-full bg-[#222227]" />
+      <motion.div
+        className="absolute top-[22px] left-[10%] h-[3px] rounded-full bg-gradient-to-r from-[#FEAE00] to-[#10B981]"
+        initial={{ width: 0 }}
+        animate={{ width: `${fillPct}%` }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+      />
+      <div className="relative grid grid-cols-5 gap-1">
+        {PROCESS_STEPS.map((step, idx) => {
+          const Icon = step.icon;
+          const done = idx < currentStep;
+          const current = idx === currentStep;
+          let node = 'bg-[#222227] border border-[#34343A] text-[#71717A]';
+          if (done) node = 'bg-emerald-500 border border-emerald-400 text-white shadow-[0_4px_14px_rgba(16,185,129,0.35)]';
+          else if (current) node = 'bg-[#17171A] border-2 border-[#FEAE00] text-[#FEAE00] shadow-[0_0_0_4px_rgba(254,174,0,0.12)]';
+          return (
+            <div key={step.code} className="flex flex-col items-center gap-2" data-testid={`process-step-${step.code}`}>
+              <div className={`relative z-10 w-11 h-11 rounded-2xl flex items-center justify-center transition-colors ${node}`}>
+                {done ? <Check size={20} weight="bold" /> : <Icon size={20} weight="duotone" />}
+                {current && (
+                  <span className="absolute inset-0 rounded-2xl border-2 border-[#FEAE00] animate-ping opacity-40" />
+                )}
+              </div>
+              <span className={`text-[10px] sm:text-[11px] text-center leading-tight font-medium ${
+                current ? 'text-[#FEAE00]' : done ? 'text-zinc-100' : 'text-zinc-400'
+              }`}>
+                {t(step.labelKey)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 // Layout Component
 export const CabinetLayout = () => {
   return <CabinetLayoutInner />;
@@ -572,52 +618,61 @@ export const CabinetDashboard = () => {
         </motion.div>
       )}
 
-      {/* 4. TIMELINE - What's happening (vertical) */}
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-white border border-[#E4E4E7] rounded-2xl p-5"
-        data-testid="timeline-block"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-[#18181B]">{t('adm_process_progress')}</h2>
-          <Link to={`/cabinet/${customerId}/timeline`} className="text-xs text-[#71717A] hover:text-[#18181B]">
-            {t('adm_all_events')}
-          </Link>
-        </div>
-
-        {latestTimeline && latestTimeline.length > 0 ? (
-          <div className="space-y-0">
-            {latestTimeline.slice(0, 5).map((event, idx) => (
-              <div key={event.id} className="flex gap-3">
-                {/* Vertical Line */}
-                <div className="flex flex-col items-center">
-                  <div className={`w-3 h-3 rounded-full shrink-0 ${
-                    idx === 0 ? 'bg-emerald-500' : 'bg-[#E4E4E7]'
-                  }`} />
-                  {idx < latestTimeline.length - 1 && idx < 4 && (
-                    <div className="w-0.5 h-full min-h-[40px] bg-[#E4E4E7]" />
-                  )}
-                </div>
-                {/* Content */}
-                <div className="pb-4">
-                  <p className={`text-sm font-medium ${idx === 0 ? 'text-[#18181B]' : 'text-[#71717A]'}`}>
-                    {tSeed(event.title || formatEventType(event.type), lang)}
-                  </p>
-                  <p className="text-xs text-[#A1A1AA] mt-0.5">
-                    {event.timestamp || event.createdAt
-                      ? new Date(event.timestamp || event.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'bg' ? 'bg-BG' : getLocale())
-                      : ''}
-                  </p>
-                </div>
-              </div>
-            ))}
+      {/* 4. PROCESS PROGRESS — premium 5-step tracker + recent events (only with an active deal) */}
+      {primaryDeal && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-[#17171A] border border-[#27272A] rounded-2xl p-5 sm:p-6"
+          data-testid="timeline-block"
+        >
+          <div className="mb-6">
+            <h2 className="font-semibold text-zinc-100">{t('adm_process_progress')}</h2>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              {t('r9_stage')} {currentStep + 1} {t('r9_from')} {PROCESS_STEPS.length} {t('r9_em_dash')} {t(PROCESS_STEPS[currentStep]?.labelKey || '')}
+            </p>
           </div>
-        ) : (
-          <p className="text-sm text-[#71717A] text-center py-4">{t('adm_no_events_yet')}</p>
-        )}
-      </motion.div>
+
+          <ProcessTracker currentStep={currentStep} t={t} />
+
+          {latestTimeline && latestTimeline.length > 0 && (
+            <div className="mt-7 pt-5 border-t border-[#27272A]">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-zinc-300">{t('adm_history')}</h3>
+                <Link to={`/cabinet/${customerId}/timeline`} className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors">
+                  {t('adm_all_events')}
+                </Link>
+              </div>
+              <div className="space-y-0">
+                {latestTimeline.slice(0, 5).map((event, idx) => {
+                  const last = idx === Math.min(latestTimeline.length, 5) - 1;
+                  return (
+                    <div key={event.id} className="flex gap-3" data-testid={`timeline-event-${idx}`}>
+                      <div className="flex flex-col items-center">
+                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1.5 ${
+                          idx === 0 ? 'bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]' : 'bg-[#3A3A40]'
+                        }`} />
+                        {!last && <div className="w-[2px] flex-1 min-h-[34px] bg-[#27272A]" />}
+                      </div>
+                      <div className={last ? 'pb-0' : 'pb-5'}>
+                        <p className={`text-sm font-medium ${idx === 0 ? 'text-zinc-100' : 'text-zinc-400'}`}>
+                          {tSeed(event.title || formatEventType(event.type), lang)}
+                        </p>
+                        <p className="text-xs text-zinc-500 mt-0.5 tabular-nums">
+                          {event.timestamp || event.createdAt
+                            ? new Date(event.timestamp || event.createdAt).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'bg' ? 'bg-BG' : getLocale())
+                            : ''}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* 5. MANAGER CONTACT - Compact */}
       {manager && (
@@ -652,28 +707,47 @@ export const CabinetDashboard = () => {
         </motion.div>
       )}
 
-      {/* No active orders - Show call to action */}
+      {/* No active orders — premium designed empty state with journey preview */}
       {!primaryDeal && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white border border-[#E4E4E7] rounded-2xl p-8 text-center"
+          className="bg-[#17171A] border border-[#27272A] rounded-2xl overflow-hidden"
+          data-testid="cabinet-empty-state"
         >
-          <div className="w-16 h-16 bg-[#F4F4F5] rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Car size={32} className="text-[#71717A]" />
+          <div className="relative p-6 sm:p-8">
+            <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#FEAE00] via-[#FEAE00]/50 to-transparent" />
+
+            <div className="flex flex-col items-center text-center max-w-lg mx-auto">
+              <div className="w-16 h-16 rounded-2xl bg-[#FEAE00]/15 border border-[#FEAE00]/30 flex items-center justify-center mb-4">
+                <Compass size={32} weight="duotone" className="text-[#FEAE00]" />
+              </div>
+              <h2 className="text-lg font-bold text-zinc-100">{t('adm_no_active_orders_yet')}</h2>
+              <p className="text-sm text-zinc-400 mt-2">
+                {t('adm_browse_our_catalog_and_choose_your_dream_car')}
+              </p>
+            </div>
+
+            {/* Journey preview — show the 5 steps the customer will go through */}
+            <div className="mt-8">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-zinc-500 font-semibold mb-5 text-center">
+                {t('adm_process_progress')}
+              </p>
+              <ProcessTracker currentStep={0} t={t} />
+            </div>
+
+            <div className="mt-8 flex justify-center">
+              <Link
+                to="/vehicles"
+                className="inline-flex items-center gap-2 bg-[#FEAE00] text-[#18181B] px-6 py-3 rounded-xl font-semibold hover:bg-[#FFBF2D] transition-colors"
+                data-testid="empty-browse-cta"
+              >
+                <Car size={18} weight="bold" />
+                {t('adm_view_car')}
+              </Link>
+            </div>
           </div>
-          <h2 className="text-lg font-semibold text-[#18181B]">{t('adm_no_active_orders_yet')}</h2>
-          <p className="text-sm text-[#71717A] mt-2 mb-6">
-            {t('adm_browse_our_catalog_and_choose_your_dream_car')}
-          </p>
-          <Link
-            to="/vehicles"
-            className="inline-flex items-center gap-2 bg-[#18181B] text-white px-6 py-3 rounded-xl font-medium hover:bg-[#27272A]"
-          >
-            <Car size={18} />
-            {t('adm_view_car')}
-          </Link>
         </motion.div>
       )}
     </div>
