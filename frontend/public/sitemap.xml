@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Static sitemap for BIBI Cars public pages.
+  For dynamic entries (catalog cars, blog posts) see /api/seo/sitemap.xml
+  which is rendered live from MongoDB.
+
+  https://www.sitemaps.org/protocol.html
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <url>
+    <loc>https://bibi.cars/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.00</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://bibi.cars/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://bibi.cars/?lang=bg"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://bibi.cars/"/>
+  </url>
+
+  <url>
+    <loc>https://bibi.cars/catalog</loc>
+    <changefreq>hourly</changefreq>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://bibi.cars/catalog?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://bibi.cars/catalog?lang=bg"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://bibi.cars/catalog"/>
+  </url>
+
+  <url>
+    <loc>https://bibi.cars/calculator</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://bibi.cars/calculator?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://bibi.cars/calculator?lang=bg"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://bibi.cars/calculator"/>
+  </url>
+
+  <url>
+    <loc>https://bibi.cars/vin-check</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://bibi.cars/vin-check?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://bibi.cars/vin-check?lang=bg"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://bibi.cars/vin-check"/>
+  </url>
+
+  <url>
+    <loc>https://bibi.cars/blog</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.70</priority>
+  </url>
+
+  <url>
+    <loc>https://bibi.cars/collections</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.70</priority>
+  </url>
+
+  <url>
+    <loc>https://bibi.cars/about</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.60</priority>
+  </url>
+
+  <url>
+    <loc>https://bibi.cars/contacts</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.60</priority>
+  </url>
+
+  <url>
+    <loc>https://bibi.cars/privacy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.30</priority>
+  </url>
+
+  <url>
+    <loc>https://bibi.cars/terms</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.30</priority>
+  </url>
+
+  <url>
+    <loc>https://bibi.cars/cookies</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.30</priority>
+  </url>
+
+  <url>
+    <loc>https://bibi.cars/conditions</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.30</priority>
+  </url>
+
+</urlset>

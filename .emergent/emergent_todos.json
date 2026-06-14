@@ -1,0 +1,30 @@
+[
+  {
+    "content": "Deploy project into /app (backend+frontend), preserve env, install deps, services running",
+    "status": "completed"
+  },
+  {
+    "content": "Verify test bypasses removed (test@customer.com) — confirmed already removed",
+    "status": "completed"
+  },
+  {
+    "content": "Build Customer 2FA management block in CustomerCabinet Account Security (enable wizard w/ QR, verify, backup codes, disable, regenerate)",
+    "status": "completed"
+  },
+  {
+    "content": "Add i18n EN/BG/UK keys for all customer 2FA UI",
+    "status": "completed"
+  },
+  {
+    "content": "Validate backend 2FA flow via POC (passed 100%)",
+    "status": "completed"
+  },
+  {
+    "content": "Test full customer 2FA flow end-to-end (testing agent - frontend)",
+    "status": "in_progress"
+  },
+  {
+    "content": "Final production readiness verification (health, workers, smoke test)",
+    "status": "pending"
+  }
+]

@@ -1,0 +1,56 @@
+# BIBI Cars — robots.txt
+# https://www.robotstxt.org/
+
+User-agent: *
+
+# Public catalog & content pages — open for indexing
+Allow: /
+Allow: /catalog
+Allow: /calculator
+Allow: /vin-check
+Allow: /cars/
+Allow: /blog
+Allow: /collections
+Allow: /about
+Allow: /contacts
+Allow: /privacy
+Allow: /terms
+Allow: /cookies
+Allow: /conditions
+
+# Private / authenticated areas — keep out of the index
+Disallow: /admin
+Disallow: /cabinet
+Disallow: /quote/
+Disallow: /api/
+Disallow: /*?token=
+Disallow: /*?session=
+Disallow: /*?auth=
+
+# Tracker / pixel parameter stripping hint (modern bots honor this)
+Clean-param: utm_source&utm_medium&utm_campaign&utm_term&utm_content&gclid&fbclid&yclid
+
+# Crawl politeness — let big bots set their own pace, throttle the rest
+Crawl-delay: 1
+
+User-agent: Googlebot
+Crawl-delay: 0
+
+User-agent: Bingbot
+Crawl-delay: 0
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+# Sitemaps
+Sitemap: https://bibi.cars/sitemap.xml
+Sitemap: https://bibi.cars/api/seo/sitemap.xml

@@ -1,0 +1,70 @@
+{
+  "name": "BIBI Cars — Auction-to-keys vehicle import to Bulgaria",
+  "short_name": "BIBI Cars",
+  "description": "Pre-owned car import from US & South Korea auctions to Bulgaria with full transparency: VIN check, live calculator, customs handling and door-to-door delivery.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/?utm_source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#18181B",
+  "theme_color": "#18181B",
+  "categories": ["business", "automotive", "shopping"],
+  "icons": [
+    {
+      "src": "/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Catalog",
+      "short_name": "Catalog",
+      "url": "/catalog?utm_source=pwa_shortcut",
+      "description": "Browse imported vehicles available now"
+    },
+    {
+      "name": "Calculator",
+      "short_name": "Calculator",
+      "url": "/calculator?utm_source=pwa_shortcut",
+      "description": "Live import cost calculator"
+    },
+    {
+      "name": "VIN check",
+      "short_name": "VIN",
+      "url": "/vin-check?utm_source=pwa_shortcut",
+      "description": "Decode any 17-character VIN"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "summary": "Customer 2FA end-to-end testing completed successfully. All backend API endpoints and frontend UI flows passed validation.",
+  "backend_issues": {
+    "critical_bugs": [],
+    "flaky_endpoints": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Customer login with email/password (demo_2fa@bibi.cars)",
+    "Profile page loads with Account Security section",
+    "2FA status check (GET /api/customer-auth/2fa/status)",
+    "2FA setup wizard - password entry",
+    "2FA setup wizard - QR code and manual key display",
+    "TOTP code computation using pyotp",
+    "2FA verification with TOTP code (POST /api/customer-auth/2fa/verify)",
+    "Backup codes generation (10 codes received)",
+    "2FA enabled state verification (status badge shows 'Enabled')",
+    "Backup codes remaining counter display",
+    "Logout and re-login flow",
+    "Login challenge modal appears after password entry",
+    "TOTP challenge verification (POST /api/customer-auth/2fa/challenge/verify)",
+    "Login with TOTP code successful",
+    "Backup code toggle in challenge modal",
+    "Login with backup code successful",
+    "2FA disable flow - password and TOTP entry",
+    "2FA disabled successfully (POST /api/customer-auth/2fa/disable)",
+    "Status badge returns to 'Disabled'",
+    "Public storefront homepage loads correctly"
+  ],
+  "test_report_links": [
+    "/app/test_customer_2fa.py",
+    "/app/.screenshots/06_backup_codes_ui.png",
+    "/app/.screenshots/07_2fa_enabled_ui.png",
+    "/app/.screenshots/08_after_totp_login.png",
+    "/app/.screenshots/09_after_backup_login.png",
+    "/app/.screenshots/10_2fa_disabled.png",
+    "/app/.screenshots/11_storefront_homepage.png"
+  ],
+  "action_item_for_main_agent": "",
+  "updated_files": [
+    "/app/test_customer_2fa.py"
+  ],
+  "success_percentage": {
+    "backend": "100% (8/8 endpoints tested)",
+    "frontend": "100% (all UI flows tested)"
+  },
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_test_itself": false,
+  "test_details": {
+    "backend_endpoints_tested": [
+      "POST /api/customer-auth/login",
+      "GET /api/customer-auth/2fa/status",
+      "POST /api/customer-auth/2fa/setup",
+      "POST /api/customer-auth/2fa/verify",
+      "POST /api/customer-auth/2fa/challenge/verify (TOTP)",
+      "POST /api/customer-auth/2fa/challenge/verify (backup code)",
+      "POST /api/customer-auth/2fa/disable"
+    ],
+    "frontend_flows_tested": [
+      "Customer login at /cabinet/login",
+      "Profile page navigation (/cabinet/{customerId}/profile)",
+      "2FA Enable wizard (password → QR/manual key → TOTP → backup codes)",
+      "2FA status badge display (Disabled → Enabled → Disabled)",
+      "Login challenge modal with TOTP",
+      "Login challenge modal with backup code",
+      "2FA Disable wizard (password + TOTP)",
+      "Public storefront smoke check"
+    ],
+    "test_credentials_used": {
+      "email": "demo_2fa@bibi.cars",
+      "password": "Passw0rd!",
+      "customerId": "cust_5f4afc9d33a4"
+    },
+    "pyotp_integration": "Successfully computed TOTP codes from manual key displayed in UI",
+    "data_testid_coverage": "All critical UI elements have proper data-testid attributes for testing"
+  }
+}
