@@ -1,26 +1,30 @@
 [
   {
-    "content": "Audit all 'emergent'/preview/cluster/domain refs in front+back",
+    "content": "Configure Resend (apiKey + from=bibicars.eu); delivery works via auto-fallback (branded domain not yet verified in this Resend account)",
     "status": "completed"
   },
   {
-    "content": "Remove unused emergentintegrations + litellm(emergentagent wheel) from requirements.txt",
+    "content": "Default team_lead OTP recipient = nname.dao@gmail.com (admin-configurable)",
     "status": "completed"
   },
   {
-    "content": "Clean hardcoded emergent preview URL from scripts (env-driven AUDIT_BASE_URL)",
+    "content": "Team_lead OTP email delivery (login + resend) with designed template; code emailed AND in admin panel",
     "status": "completed"
   },
   {
-    "content": "Update SEO robots.txt + sitemap.xml domain bibi.cars -> bibicars.eu",
+    "content": "Admin UI for recipient config + pending OTP viewer (exists in AdminSecurityPage.jsx)",
     "status": "completed"
   },
   {
-    "content": "Add PUBLIC_SITE_URL/PUBLIC_APP_URL/PUBLIC_BASE_URL/SEO_PUBLIC_ORIGIN=bibicars.eu so config/SEO resolve to domain (not emergent)",
+    "content": "Customer email-verification modal verified (register -> code -> modal, Resend premium template)",
     "status": "completed"
   },
   {
-    "content": "Verify backend clean restart + 0 emergent refs in runtime code + healthy",
+    "content": "Build customer Email-OTP 2FA method (backend endpoints + login challenge + cabinet UI + login modal + i18n)",
     "status": "completed"
+  },
+  {
+    "content": "End-to-end test all email/OTP flows (testing agent)",
+    "status": "in_progress"
   }
 ]

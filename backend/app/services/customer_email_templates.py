@@ -177,3 +177,155 @@ def render_welcome_email(name: str = "") -> Tuple[str, str, str]:
 
     subject = "Welcome to BIBI Cars — your cabinet is ready"
     return subject, html, text
+
+
+
+def render_staff_login_otp_email(
+    code: str,
+    *,
+    staff_email: str = "",
+    staff_name: str = "",
+    role: str = "team_lead",
+    ttl_minutes: int = 10,
+) -> Tuple[str, str, str]:
+    """Login-approval OTP email for a team-lead sign-in.
+
+    Sent to the configured administration inbox so the master-admin can approve
+    the team-lead's first login of the session. Returns (subject, html, text).
+    """
+    who = (staff_name or "").strip() or (staff_email or "").strip() or "a team lead"
+    role_label = (role or "team_lead").replace("_", " ").title()
+    digits = "".join(
+        f"""<td align="center" style="padding:0 5px;">
+              <div style="width:46px;height:60px;line-height:60px;background:{BG_OUTER};border:1px solid {BORDER};border-radius:10px;
+                          font-family:'Courier New',monospace;font-size:30px;font-weight:700;color:{BRAND_GOLD};">{d}</div>
+            </td>"""
+        for d in str(code)
+    )
+
+    inner = f"""
+      <p style="margin:0 0 6px 0;font-family:'Trebuchet MS',Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:{BRAND_GOLD};font-weight:700;">
+        Login approval required
+      </p>
+      <h1 style="margin:0 0 14px 0;font-family:'Trebuchet MS',Helvetica,Arial,sans-serif;font-size:26px;line-height:32px;color:{TEXT};font-weight:800;">
+        Team-lead sign-in
+      </h1>
+      <p style="margin:0 0 22px 0;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:24px;color:{TEXT_MUTED};">
+        <strong style="color:{TEXT};">{who}</strong> ({role_label}) is signing in to the BIBI Cars panel and needs
+        a one-time approval code. Share the code below with them to complete the login.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px 0;">
+        <tr>
+          <td style="background:{BG_INNER};border:1px solid {BORDER};border-radius:12px;padding:14px 18px;">
+            <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12.5px;line-height:20px;color:{TEXT_MUTED};">
+              <span style="color:#6A6A64;">Account:</span> <strong style="color:{TEXT};">{staff_email or '—'}</strong><br/>
+              <span style="color:#6A6A64;">Role:</span> <strong style="color:{TEXT};">{role_label}</strong>
+            </p>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Code -->
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 22px auto;">
+        <tr>{digits}</tr>
+      </table>
+
+      <p style="margin:0 0 24px 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:{TEXT_MUTED};text-align:center;">
+        This code expires in <strong style="color:{TEXT};">{ttl_minutes} minutes</strong>.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="background:{BG_INNER};border:1px solid {BORDER};border-radius:12px;padding:16px 18px;">
+            <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12.5px;line-height:19px;color:{TEXT_MUTED};">
+              <strong style="color:{TEXT};">Not expecting this?</strong> If you did not authorise this sign-in,
+              do <strong style="color:{TEXT};">not</strong> share the code — the login cannot proceed without it.
+              The same code is also visible in the admin panel under Security &middot; Pending logins.
+            </p>
+          </td>
+        </tr>
+      </table>
+    """
+
+    html = _shell(
+        preheader=f"Team-lead login approval code: {code}",
+        inner_html=inner,
+    )
+
+    text = (
+        f"BIBI Cars — team-lead login approval\n\n"
+        f"{who} ({role_label}) is signing in.\n"
+        f"Account: {staff_email or '—'}\n\n"
+        f"Approval code: {code}\n"
+        f"Expires in {ttl_minutes} minutes.\n\n"
+        f"Share this code with the team lead to complete the login.\n"
+        f"If you did not authorise this sign-in, do not share the code.\n\n"
+        f"— BIBI Cars"
+    )
+
+    subject = f"{code} — BIBI Cars team-lead login approval"
+    return subject, html, text
+
+
+
+def render_login_otp_email(code: str, name: str = "", ttl_minutes: int = 10) -> Tuple[str, str, str]:
+    """Customer login one-time code (email-based 2FA on sign-in).
+
+    Returns (subject, html, text).
+    """
+    safe_name = (name or "").strip()
+    hello = f"Hi {safe_name}," if safe_name else "Hi,"
+    digits = "".join(
+        f"""<td align="center" style="padding:0 5px;">
+              <div style="width:46px;height:60px;line-height:60px;background:{BG_OUTER};border:1px solid {BORDER};border-radius:10px;
+                          font-family:'Courier New',monospace;font-size:30px;font-weight:700;color:{BRAND_GOLD};">{d}</div>
+            </td>"""
+        for d in str(code)
+    )
+
+    inner = f"""
+      <p style="margin:0 0 6px 0;font-family:'Trebuchet MS',Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:{BRAND_GOLD};font-weight:700;">
+        Sign-in verification
+      </p>
+      <h1 style="margin:0 0 14px 0;font-family:'Trebuchet MS',Helvetica,Arial,sans-serif;font-size:26px;line-height:32px;color:{TEXT};font-weight:800;">
+        Your login code
+      </h1>
+      <p style="margin:0 0 26px 0;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:24px;color:{TEXT_MUTED};">
+        {hello} a sign-in to your BIBI Cars cabinet needs a one-time code. Enter the code below
+        on the verification screen to finish logging in.
+      </p>
+
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 26px auto;">
+        <tr>{digits}</tr>
+      </table>
+
+      <p style="margin:0 0 26px 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:{TEXT_MUTED};text-align:center;">
+        This code expires in <strong style="color:{TEXT};">{ttl_minutes} minutes</strong>.
+      </p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="background:{BG_INNER};border:1px solid {BORDER};border-radius:12px;padding:16px 18px;">
+            <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:12.5px;line-height:19px;color:{TEXT_MUTED};">
+              <strong style="color:{TEXT};">Didn't try to sign in?</strong> Someone may have your password.
+              Do not share this code, and change your password from your cabinet as soon as possible.
+            </p>
+          </td>
+        </tr>
+      </table>
+    """
+
+    html = _shell(
+        preheader=f"Your BIBI Cars login code is {code}",
+        inner_html=inner,
+    )
+    text = (
+        f"BIBI Cars — login verification\n\n"
+        f"Your one-time login code: {code}\n"
+        f"Expires in {ttl_minutes} minutes.\n\n"
+        f"If you didn't try to sign in, do not share this code and change your password.\n\n"
+        f"— BIBI Cars"
+    )
+    subject = f"{code} — BIBI Cars login code"
+    return subject, html, text

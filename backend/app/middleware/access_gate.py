@@ -120,7 +120,7 @@ _CUSTOMER = _compile([
     r"/api/customer-auth/google/me",
     # Customer 2FA management (requires a valid customer session). The login
     # challenge verify path is PUBLIC (matched above) and excluded here.
-    r"/api/customer-auth/2fa/(status|setup|verify|disable|backup/regenerate)",
+    r"/api/customer-auth/2fa/(status|setup|verify|disable|backup/regenerate|email/enable|email/disable)",
     r"/api/customer-cabinet(/.*)?",
     r"/api/customer-portal(/.*)?",
     r"/api/cabinet(/.*)?",

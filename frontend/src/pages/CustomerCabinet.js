@@ -41,6 +41,7 @@ import {
   List as MenuIcon,
   X as CloseIcon,
   ShieldCheck,
+  EnvelopeSimple,
   Copy,
   Key,
   DownloadSimple,
@@ -1057,6 +1058,11 @@ const TwoFactorSection = ({ t, getAuthHeaders, hasPassword }) => {
   const [opCode, setOpCode] = useState('');
   const [copied, setCopied] = useState(false);
 
+  // email-OTP method (alternative to authenticator app)
+  const [emailEnableOpen, setEmailEnableOpen] = useState(false);
+  const [emailDisableOpen, setEmailDisableOpen] = useState(false);
+  const [emailPwd, setEmailPwd] = useState('');
+
   const loadStatus = useCallback(async () => {
     try {
       const res = await axios.get(`${API_URL}/api/customer-auth/2fa/status`, { headers: getAuthHeaders() });
@@ -1156,7 +1162,36 @@ const TwoFactorSection = ({ t, getAuthHeaders, hasPassword }) => {
     URL.revokeObjectURL(url);
   };
 
+  const doEmailEnable = async () => {
+    setBusy(true); setErr('');
+    try {
+      await axios.post(
+        `${API_URL}/api/customer-auth/2fa/email/enable`,
+        { password: emailPwd },
+        { headers: getAuthHeaders() }
+      );
+      toast.success(t('cab_2fa_email_success_on'));
+      setEmailEnableOpen(false); setEmailPwd('');
+      await loadStatus();
+    } catch (e) { setErr(errMsg(e)); } finally { setBusy(false); }
+  };
+
+  const doEmailDisable = async () => {
+    setBusy(true); setErr('');
+    try {
+      await axios.post(
+        `${API_URL}/api/customer-auth/2fa/email/disable`,
+        { password: emailPwd },
+        { headers: getAuthHeaders() }
+      );
+      toast.success(t('cab_2fa_email_success_off'));
+      setEmailDisableOpen(false); setEmailPwd('');
+      await loadStatus();
+    } catch (e) { setErr(errMsg(e)); } finally { setBusy(false); }
+  };
+
   const enabled = !!status?.enabled;
+  const emailEnabled = !!status?.emailEnabled;
   const remaining = status?.backupCodesRemaining ?? 0;
 
   const inputCls = 'w-full px-3 py-2 border border-[#E4E4E7] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#18181B]/10';
@@ -1164,7 +1199,9 @@ const TwoFactorSection = ({ t, getAuthHeaders, hasPassword }) => {
   const sheet = 'bg-white rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto';
 
   return (
-    <div className="flex items-start justify-between py-2 border-t border-[#F4F4F5]" data-testid="cabinet-2fa-section">
+    <div className="border-t border-[#F4F4F5] pt-1" data-testid="cabinet-2fa-section">
+      {/* Method A — Authenticator app (TOTP) */}
+      <div className="flex items-start justify-between py-2">
       <div className="flex gap-3">
         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${enabled ? 'bg-emerald-50 text-emerald-600' : 'bg-[#F4F4F5] text-[#71717A]'}`}>
           <ShieldCheck size={18} weight={enabled ? 'fill' : 'regular'} />
@@ -1204,11 +1241,105 @@ const TwoFactorSection = ({ t, getAuthHeaders, hasPassword }) => {
             {t('cab_2fa_disable')}
           </button>
         ) : (
-          <button onClick={() => { setErr(''); setPwd(''); setSetupStep(hasPassword ? 'password' : 'scan'); setSetupOpen(true); if (!hasPassword) beginSetup(); }} className="text-xs font-medium text-white bg-[#18181B] px-3 py-1.5 rounded-lg hover:bg-black" data-testid="2fa-enable-btn">
+          <button
+            onClick={() => { setErr(''); setPwd(''); setSetupStep(hasPassword ? 'password' : 'scan'); setSetupOpen(true); if (!hasPassword) beginSetup(); }}
+            disabled={emailEnabled}
+            title={emailEnabled ? t('cab_2fa_switch_hint') : ''}
+            className="text-xs font-medium text-white bg-[#18181B] px-3 py-1.5 rounded-lg hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
+            data-testid="2fa-enable-btn"
+          >
             {t('cab_2fa_enable')}
           </button>
         )}
       </div>
+      </div>
+
+      {/* Method B — Email login code */}
+      <div className="flex items-start justify-between py-2 border-t border-[#F4F4F5]/70 mt-1 pt-3" data-testid="cabinet-2fa-email-section">
+        <div className="flex gap-3">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${emailEnabled ? 'bg-emerald-50 text-emerald-600' : 'bg-[#F4F4F5] text-[#71717A]'}`}>
+            <EnvelopeSimple size={18} weight={emailEnabled ? 'fill' : 'regular'} />
+          </div>
+          <div>
+            <p className="font-medium text-[#18181B] flex items-center gap-2">
+              {t('cab_2fa_email_title')}
+              <span
+                className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${emailEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-[#F4F4F5] text-[#71717A]'}`}
+                data-testid="2fa-email-status-badge"
+              >
+                {emailEnabled ? t('cab_2fa_status_on') : t('cab_2fa_status_off')}
+              </span>
+            </p>
+            <p className="text-xs text-[#71717A] mt-1 max-w-md">{t('cab_2fa_email_desc')}</p>
+            {emailEnabled && status?.email && (
+              <p className="text-xs text-[#A1A1AA] mt-1" data-testid="2fa-email-target">
+                {t('cab_2fa_email_sent_to')}: {status.email}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="shrink-0">
+          {loading ? null : emailEnabled ? (
+            <button onClick={() => { setErr(''); setEmailPwd(''); setEmailDisableOpen(true); }} className="text-xs text-red-600 hover:underline" data-testid="2fa-email-disable-btn">
+              {t('cab_2fa_disable')}
+            </button>
+          ) : (
+            <button
+              onClick={() => { setErr(''); setEmailPwd(''); setEmailEnableOpen(true); }}
+              disabled={enabled}
+              title={enabled ? t('cab_2fa_switch_hint') : ''}
+              className="text-xs font-medium text-white bg-[#18181B] px-3 py-1.5 rounded-lg hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
+              data-testid="2fa-email-enable-btn"
+            >
+              {t('cab_2fa_enable')}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Email enable modal */}
+      {emailEnableOpen && (
+        <div className={overlay} onClick={() => setEmailEnableOpen(false)}>
+          <div className={sheet} onClick={(e) => e.stopPropagation()} data-testid="2fa-email-enable-modal">
+            <h3 className="text-lg font-semibold text-[#18181B] mb-1">{t('cab_2fa_email_enable_title')}</h3>
+            <p className="text-sm text-[#71717A] mt-1 mb-3">{t('cab_2fa_email_enable_desc')}</p>
+            <div className="space-y-3">
+              {hasPassword && (
+                <input type="password" value={emailPwd} onChange={(e) => setEmailPwd(e.target.value)} placeholder={t('cab_2fa_password_label')} className={inputCls} data-testid="2fa-email-enable-password" autoFocus />
+              )}
+              {err && <p className="text-xs text-red-600" data-testid="2fa-error">{err}</p>}
+              <div className="flex gap-2 justify-end pt-2">
+                <button onClick={() => setEmailEnableOpen(false)} className="px-4 py-2 text-sm text-[#71717A] hover:text-[#18181B]">{t('cab_2fa_cancel')}</button>
+                <button onClick={doEmailEnable} disabled={busy || (hasPassword && !emailPwd)} className="px-4 py-2 text-sm font-medium text-white bg-[#18181B] rounded-lg disabled:opacity-50 flex items-center gap-2" data-testid="2fa-email-enable-confirm">
+                  {busy && <CircleNotch size={16} className="animate-spin" />}{t('cab_2fa_enable')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email disable modal */}
+      {emailDisableOpen && (
+        <div className={overlay} onClick={() => setEmailDisableOpen(false)}>
+          <div className={sheet} onClick={(e) => e.stopPropagation()} data-testid="2fa-email-disable-modal">
+            <h3 className="text-lg font-semibold text-[#18181B] mb-1">{t('cab_2fa_email_disable_title')}</h3>
+            <p className="text-sm text-[#71717A] mt-1 mb-3">{t('cab_2fa_email_disable_desc')}</p>
+            <div className="space-y-3">
+              {hasPassword && (
+                <input type="password" value={emailPwd} onChange={(e) => setEmailPwd(e.target.value)} placeholder={t('cab_2fa_password_label')} className={inputCls} data-testid="2fa-email-disable-password" autoFocus />
+              )}
+              {err && <p className="text-xs text-red-600" data-testid="2fa-error">{err}</p>}
+              <div className="flex gap-2 justify-end pt-2">
+                <button onClick={() => setEmailDisableOpen(false)} className="px-4 py-2 text-sm text-[#71717A] hover:text-[#18181B]">{t('cab_2fa_cancel')}</button>
+                <button onClick={doEmailDisable} disabled={busy || (hasPassword && !emailPwd)} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg disabled:opacity-50 flex items-center gap-2" data-testid="2fa-email-disable-confirm">
+                  {busy && <CircleNotch size={16} className="animate-spin" />}{t('cab_2fa_disable')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Setup wizard */}
       {setupOpen && (

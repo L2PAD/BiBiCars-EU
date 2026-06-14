@@ -5503,6 +5503,27 @@ async def login(request: Request, response: Response, credentials: Dict[str, Any
                 role=user_doc["role"],
                 recipient_email=recipient,
             )
+            # Deliver the approval code to the configured administration inbox
+            # via Resend (in addition to the admin-panel "pending logins" view).
+            # Best-effort: a mail failure must never block the login challenge —
+            # the master-admin can always read the code from the panel.
+            try:
+                from notifications import EmailChannel
+                from app.services.customer_email_templates import render_staff_login_otp_email
+                _subj, _html, _text = render_staff_login_otp_email(
+                    _otp["code"],
+                    staff_email=user_doc.get("email", ""),
+                    staff_name=user_doc.get("name", ""),
+                    role=user_doc.get("role", "team_lead"),
+                    ttl_minutes=10,
+                )
+                await EmailChannel(db).send(
+                    to=recipient, subject=_subj, html=_html, text=_text,
+                    event="staff_login_otp",
+                    context={"user_id": user_doc["id"], "role": user_doc.get("role")},
+                )
+            except Exception as _mail_e:  # noqa: BLE001
+                logger.warning(f"[auth/login] email-otp mail dispatch failed (code still in admin panel): {_mail_e}")
             # Mask recipient — don't leak the full admin inbox to client.
             local, _, domain = (recipient or "").partition("@")
             masked = (local[:1] + "***@" + domain) if domain else "***"
@@ -5514,7 +5535,7 @@ async def login(request: Request, response: Response, credentials: Dict[str, Any
                 "challenge_token": _otp["challenge_token"],
                 "recipient_masked": masked,
                 "expires_in_seconds": 600,
-                "hint": "Code was sent to the master-admin — ask them for the 6-digit code.",
+                "hint": "A 6-digit approval code was emailed to the master-admin inbox (and shown in the admin panel).",
             }
         except Exception as _e:  # noqa: BLE001
             logger.warning(f"[auth/login] email-otp issue failed: {_e}")
@@ -10189,6 +10210,13 @@ async def customer_google_verify(data: Dict[str, Any] = Body(...)):
                 detail=f"Too many attempts. Try again in {max(1, _2fa_locked_remaining(customer)//60)} minute(s).",
             )
         return await _issue_2fa_challenge(customer_id, email)
+    if customer.get("email_2fa_enabled"):
+        if _2fa_locked_remaining(customer) > 0:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many attempts. Try again in {max(1, _2fa_locked_remaining(customer)//60)} minute(s).",
+            )
+        return await _issue_2fa_challenge(customer_id, email, method="email")
 
     # Mint session token
     token = generate_token()
@@ -14307,6 +14335,13 @@ async def customer_login(data: Dict[str, Any] = Body(...)):
                 detail=f"Too many attempts. Try again in {max(1, _2fa_locked_remaining(customer)//60)} minute(s).",
             )
         return await _issue_2fa_challenge(cid, email)
+    if customer.get("email_2fa_enabled"):
+        if _2fa_locked_remaining(customer) > 0:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many attempts. Try again in {max(1, _2fa_locked_remaining(customer)//60)} minute(s).",
+            )
+        return await _issue_2fa_challenge(cid, email, method="email")
 
     token = await _create_customer_session(cid)
     return _customer_response(customer, token)
@@ -14558,7 +14593,74 @@ async def customer_2fa_status(authorization: Optional[str] = Header(None)):
         "backupCodesRemaining": remaining,
         "hasPassword": bool(full.get("password")),
         "available": True,
+        # Email-OTP login method (alternative to the authenticator app).
+        "emailEnabled": bool(full.get("email_2fa_enabled")),
+        "emailEnabledAt": full.get("email_2fa_enabled_at"),
+        "email": full.get("email", ""),
+        # Effective method the account currently uses at login.
+        "method": "totp" if full.get("totp_enabled") else ("email" if full.get("email_2fa_enabled") else "off"),
     }
+
+
+@fastapi_app.post("/api/customer-auth/2fa/email/enable")
+async def customer_2fa_email_enable(
+    data: Dict[str, Any] = Body(default={}),
+    authorization: Optional[str] = Header(None),
+):
+    """Enable e-mail-based login 2FA. Requires the account password (if set).
+    Mutually exclusive with the authenticator (TOTP) method — enabling e-mail
+    while TOTP is active is rejected so the account keeps a single method."""
+    customer = await _resolve_bearer(authorization)
+    if not customer:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    cid = customer.get("customerId") or customer.get("id") or customer.get("user_id")
+    full = await _fetch_full_customer(cid)
+    if not full:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    if full.get("totp_enabled"):
+        raise HTTPException(status_code=400, detail="Authenticator 2FA is already enabled — disable it first.")
+    if full.get("email_2fa_enabled"):
+        raise HTTPException(status_code=400, detail="Email 2FA is already enabled")
+    if full.get("password"):
+        password = (data or {}).get("password") or ""
+        if not password or full.get("password") != _legacy_sha256(password):
+            raise HTTPException(status_code=401, detail="Incorrect password")
+    await db.customers.update_one(
+        {"id": full.get("id") or cid},
+        {"$set": {"email_2fa_enabled": True,
+                  "email_2fa_enabled_at": datetime.now(timezone.utc).isoformat(),
+                  "twofa_failed_attempts": 0, "twofa_locked_until": None,
+                  "updatedAt": datetime.now(timezone.utc)}},
+    )
+    return {"success": True, "emailEnabled": True}
+
+
+@fastapi_app.post("/api/customer-auth/2fa/email/disable")
+async def customer_2fa_email_disable(
+    data: Dict[str, Any] = Body(default={}),
+    authorization: Optional[str] = Header(None),
+):
+    """Disable e-mail-based login 2FA. Requires the account password (if set)."""
+    customer = await _resolve_bearer(authorization)
+    if not customer:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    cid = customer.get("customerId") or customer.get("id") or customer.get("user_id")
+    full = await _fetch_full_customer(cid)
+    if not full:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    if not full.get("email_2fa_enabled"):
+        raise HTTPException(status_code=400, detail="Email 2FA is not enabled")
+    if full.get("password"):
+        password = (data or {}).get("password") or ""
+        if not password or full.get("password") != _legacy_sha256(password):
+            raise HTTPException(status_code=401, detail="Incorrect password")
+    await db.customers.update_one(
+        {"id": full.get("id") or cid},
+        {"$set": {"email_2fa_enabled": False, "twofa_failed_attempts": 0,
+                  "twofa_locked_until": None, "updatedAt": datetime.now(timezone.utc)},
+         "$unset": {"email_2fa_enabled_at": ""}},
+    )
+    return {"success": True, "emailEnabled": False}
 
 
 @fastapi_app.post("/api/customer-auth/2fa/setup")
@@ -14577,6 +14679,8 @@ async def customer_2fa_setup(
         raise HTTPException(status_code=404, detail="Customer not found")
     if full.get("totp_enabled"):
         raise HTTPException(status_code=400, detail="2FA is already enabled")
+    if full.get("email_2fa_enabled"):
+        raise HTTPException(status_code=400, detail="Email 2FA is enabled — disable it first to switch to the authenticator app.")
 
     # Password re-auth (only enforceable when the account has a password —
     # Google-only accounts have none, so the active session is the auth).
@@ -14725,16 +14829,52 @@ async def customer_2fa_regenerate_backup(
     return {"success": True, "backupCodes": plain_codes}
 
 
-async def _issue_2fa_challenge(customer_id: str, email: str = "") -> Dict[str, Any]:
-    """Create a short-lived login challenge token for a customer with 2FA on."""
+async def _issue_2fa_challenge(customer_id: str, email: str = "", method: str = "totp") -> Dict[str, Any]:
+    """Create a short-lived login challenge token for a customer with 2FA on.
+
+    method="totp"  → client must present an authenticator code / backup code.
+    method="email" → a 6-digit code is generated, e-mailed to the customer and
+                     hashed into the challenge; the client must echo it back.
+    """
     token = generate_token()
     now = datetime.now(timezone.utc)
-    await db.customer_2fa_challenges.insert_one({
+    doc = {
         "token": token,
         "customerId": customer_id,
+        "method": method,
         "created_at": now,
         "expires_at": now + timedelta(seconds=_2FA_CHALLENGE_TTL_SECONDS),
-    })
+    }
+
+    if method == "email":
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        doc["code_hash"] = hashlib.sha256(code.encode()).hexdigest()
+        await db.customer_2fa_challenges.insert_one(doc)
+        # Deliver the code to the customer's own (verified) e-mail. Best-effort:
+        # a delivery failure must not leak the code or crash the login — the
+        # client still receives the masked-recipient challenge response.
+        try:
+            from notifications import EmailChannel
+            from app.services.customer_email_templates import render_login_otp_email
+            full = await _fetch_full_customer(customer_id) or {}
+            _subj, _html, _text = render_login_otp_email(
+                code, name=full.get("name", ""), ttl_minutes=_2FA_CHALLENGE_TTL_SECONDS // 60,
+            )
+            await EmailChannel(db).send(
+                to=email or full.get("email", ""), subject=_subj, html=_html, text=_text,
+                event="customer_login_otp", context={"customerId": customer_id},
+            )
+        except Exception as _e:  # noqa: BLE001
+            logger.warning(f"[2fa] customer email-otp dispatch failed: {_e}")
+        return {
+            "challenge": "email",
+            "challenge_token": token,
+            "customerId": customer_id,
+            "emailMasked": _mask_email_addr(email) if email else "",
+            "expires_in_seconds": _2FA_CHALLENGE_TTL_SECONDS,
+        }
+
+    await db.customer_2fa_challenges.insert_one(doc)
     return {
         "challenge": "totp",
         "challenge_token": token,
@@ -14770,8 +14910,10 @@ async def customer_2fa_challenge_verify(data: Dict[str, Any] = Body(...)):
         raise HTTPException(status_code=400, detail="Challenge expired — please sign in again")
 
     cid = challenge.get("customerId")
+    method = challenge.get("method") or "totp"
     full = await _fetch_full_customer(cid)
-    if not full or not full.get("totp_enabled"):
+    active = bool(full and (full.get("totp_enabled") if method == "totp" else full.get("email_2fa_enabled")))
+    if not active:
         await db.customer_2fa_challenges.delete_one({"token": token})
         raise HTTPException(status_code=400, detail="2FA not active for this account")
 
@@ -14783,12 +14925,17 @@ async def customer_2fa_challenge_verify(data: Dict[str, Any] = Body(...)):
             detail=f"Too many attempts. Try again in {max(1, remaining // 60)} minute(s).",
         )
 
-    # Verify TOTP or a one-time backup code
     used_backup_idx = None
-    ok = _totp_verify(full.get("totp_secret"), code)
-    if not ok and backup_code:
-        used_backup_idx = _consume_backup_code(full.get("totp_backup_codes") or [], backup_code)
-        ok = used_backup_idx is not None
+    if method == "email":
+        # Verify the e-mailed one-time code against the hashed challenge value.
+        expected = challenge.get("code_hash") or ""
+        ok = bool(code) and hashlib.sha256(code.encode()).hexdigest() == expected
+    else:
+        # Verify TOTP or a one-time backup code
+        ok = _totp_verify(full.get("totp_secret"), code)
+        if not ok and backup_code:
+            used_backup_idx = _consume_backup_code(full.get("totp_backup_codes") or [], backup_code)
+            ok = used_backup_idx is not None
     if not ok:
         attempts = await _2fa_register_failure(cid, full.get("twofa_failed_attempts"))
         left = max(0, _2FA_MAX_ATTEMPTS - attempts)

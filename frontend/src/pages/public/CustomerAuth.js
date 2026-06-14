@@ -657,6 +657,19 @@ export const CustomerLoginPage = () => {
         setGoogleAuthorizing(false);
         return;
       }
+      if (data?.challenge === 'email') {
+        setChallenge({
+          challenge: 'customer_email',
+          challenge_token: data.challenge_token,
+          customerId: data.customerId,
+          emailMasked: data.emailMasked,
+          expires_in_seconds: data.expires_in_seconds,
+        });
+        setChallengeCode(''); setChallengeError('');
+        setChalUseBackup(false); setChalBackup('');
+        setGoogleAuthorizing(false);
+        return;
+      }
       navigate(`/cabinet/${data.customerId}`, { replace: true, state: { user: data } });
     } catch (err) {
       const detail = err.response?.data?.detail || err.response?.data?.message || err.message;
@@ -745,6 +758,26 @@ export const CustomerLoginPage = () => {
     if (e?.preventDefault) e.preventDefault();
     if (!challenge) return;
     setChallengeError('');
+
+    // ── Customer 2FA branch — email one-time code ──
+    if (challenge.challenge === 'customer_email') {
+      const c = (challengeCode || '').trim();
+      if (c.length !== 6 || /\D/.test(c)) { setChallengeError(t.enterFullCode); return; }
+      setChallengeBusy(true);
+      try {
+        const data = await auth.completeCustomerChallenge({
+          challenge_token: challenge.challenge_token, code: c,
+        });
+        setChallenge(null); setChallengeCode('');
+        navigate(`/cabinet/${data.customerId}`, { replace: true, state: { user: data } });
+      } catch (err) {
+        const detail = err?.response?.data?.detail || err?.message || 'Invalid code.';
+        setChallengeError(typeof detail === 'string' ? detail : 'Invalid code.');
+      } finally {
+        setChallengeBusy(false);
+      }
+      return;
+    }
 
     // ── Customer 2FA branch (TOTP or one-time backup code) ──
     if (challenge.challenge === 'customer_totp') {
@@ -877,6 +910,19 @@ export const CustomerLoginPage = () => {
         if (data?.challenge === 'totp') {
           setChallenge({
             challenge: 'customer_totp',
+            challenge_token: data.challenge_token,
+            customerId: data.customerId,
+            emailMasked: data.emailMasked,
+            user_email: email,
+            expires_in_seconds: data.expires_in_seconds,
+          });
+          setChallengeCode(''); setChallengeError('');
+          setChalUseBackup(false); setChalBackup('');
+          return;
+        }
+        if (data?.challenge === 'email') {
+          setChallenge({
+            challenge: 'customer_email',
             challenge_token: data.challenge_token,
             customerId: data.customerId,
             emailMasked: data.emailMasked,
@@ -1550,10 +1596,12 @@ export const CustomerLoginPage = () => {
               <div>
                 <div className="text-[10px] uppercase tracking-[0.16em] text-[#FEAE00]/80">
                   {challenge.challenge === 'customer_totp' ? t.twofaTitle
+                    : challenge.challenge === 'customer_email' ? 'Email verification'
                     : challenge.challenge === 'totp' ? 'Two-factor required' : 'Email code required'}
                 </div>
                 <h2 className="text-white text-xl font-semibold leading-tight">
                   {challenge.challenge === 'customer_totp' ? t.twofaLabel
+                    : challenge.challenge === 'customer_email' ? 'Enter your login code'
                     : challenge.challenge === 'totp' ? 'Authenticator code' : 'Verification code'}
                 </h2>
               </div>
@@ -1564,6 +1612,12 @@ export const CustomerLoginPage = () => {
                 <>
                   {t.twofaPrompt}{' '}
                   <strong className="text-white">{challenge.user_email || challenge.emailMasked || ''}</strong>.
+                </>
+              ) : challenge.challenge === 'customer_email' ? (
+                <>
+                  We emailed a 6-digit login code to{' '}
+                  <strong className="text-white">{challenge.emailMasked || challenge.user_email || 'your email'}</strong>.
+                  Enter it below to finish signing in.
                 </>
               ) : challenge.challenge === 'totp' ? (
                 <>
@@ -1661,6 +1715,8 @@ export const CustomerLoginPage = () => {
 
             <div className="mt-5 pt-4 border-t border-white/10 text-[11px] text-white/40 leading-relaxed">
               {challenge.challenge === 'customer_totp' ? t.twofaHint
+                : challenge.challenge === 'customer_email'
+                ? 'The code is valid for 10 minutes. Max 5 attempts before you must request a new one.'
                 : challenge.challenge === 'totp'
                 ? 'Codes refresh every 30 seconds. If the code is rejected, wait for the next one.'
                 : 'Codes are valid for 10 minutes. Max 5 attempts before a new code must be issued.'}

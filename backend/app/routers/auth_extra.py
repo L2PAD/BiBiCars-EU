@@ -150,13 +150,33 @@ async def auth_email_otp_request(
         user_id=user["id"], user_email=user["email"],
         role=user["role"], recipient_email=recipient,
     )
+    # Email the code to the configured administration inbox (best-effort).
+    try:
+        from notifications import EmailChannel
+        from app.services.customer_email_templates import render_staff_login_otp_email
+        _subj, _html, _text = render_staff_login_otp_email(
+            doc["code"],
+            staff_email=user.get("email", ""),
+            staff_name=user.get("name", ""),
+            role=user.get("role", "team_lead"),
+            ttl_minutes=10,
+        )
+        await EmailChannel(_db()).send(
+            to=recipient, subject=_subj, html=_html, text=_text,
+            event="staff_login_otp",
+            context={"user_id": user["id"], "role": user.get("role")},
+        )
+    except Exception as _mail_e:  # noqa: BLE001
+        logging.getLogger("bibi.auth_extra").warning(
+            "email-otp resend mail dispatch failed (code still in admin panel): %s", _mail_e
+        )
     # Код сам не возвращаем никогда — только challenge_token + реципиент (маска).
     masked = _mask_email(recipient)
     return {
         "challenge_token": doc["challenge_token"],
         "recipient_masked": masked,
         "expires_in_seconds": 600,
-        "hint": "Code was issued. Master-admin can read it from the admin panel and forward it to you.",
+        "hint": "A fresh code was emailed to the master-admin inbox (and shown in the admin panel).",
     }
 
 

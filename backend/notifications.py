@@ -120,7 +120,7 @@ bus = EventBus()
 #     retried from RESEND_SANDBOX_FROM (onboarding@resend.dev) which Resend always
 #     accepts — so verification emails are delivered immediately during rollout.
 RESEND_API_KEY_FALLBACK = os.environ.get("RESEND_API_KEY_FALLBACK", "").strip()
-RESEND_DEFAULT_FROM = "BIBI Cars <noreply@bibicars.org>"
+RESEND_DEFAULT_FROM = "BIBI Cars <noreply@bibicars.eu>"
 RESEND_SANDBOX_FROM = "BIBI Cars <onboarding@resend.dev>"
 
 
