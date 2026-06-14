@@ -24,24 +24,16 @@ from __future__ import annotations
 import os
 from typing import Any, Dict
 
-# Hardcoded baseline credentials (handed off Jun-2026 by client).
-# Overridable via env vars for staging/CI without code edits.
-DEFAULT_API_KEY = os.environ.get(
-    "RINGOSTAT_API_KEY",
-    "CKHVjXFxovG3h6PxnKSJnbkr6SxmsrQm",
-)
-DEFAULT_PROJECT_ID = os.environ.get(
-    "RINGOSTAT_PROJECT_ID",
-    "145693",
-)
+# Credentials are env-driven (RINGOSTAT_* in backend/.env) or DB-managed via
+# the admin UI. No real secret is committed in source (S3.4 secrets hygiene).
+# Empty fallbacks mean "not configured" until env/DB provides a value.
+DEFAULT_API_KEY = os.environ.get("RINGOSTAT_API_KEY", "")
+DEFAULT_PROJECT_ID = os.environ.get("RINGOSTAT_PROJECT_ID", "")
 
 # Webhook auth token — present so the Ringostat side can include
-# ``?token=<value>`` in the webhook URL and we'll verify it.  Generated
-# once at install time; admins can rotate it from the UI.
-DEFAULT_WEBHOOK_SECRET = os.environ.get(
-    "RINGOSTAT_WEBHOOK_SECRET",
-    "pDaUlnxxMh0euseuLDJywlEUeAss2-RK2o_oCH7u4N0",
-)
+# ``?token=<value>`` in the webhook URL and we'll verify it.  Set via env
+# RINGOSTAT_WEBHOOK_SECRET; admins can rotate it from the UI.
+DEFAULT_WEBHOOK_SECRET = os.environ.get("RINGOSTAT_WEBHOOK_SECRET", "")
 
 DEFAULT_AUTOMATION_RULES: Dict[str, Any] = {
     "auto_create_lead": True,

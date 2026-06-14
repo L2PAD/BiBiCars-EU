@@ -1,30 +1,34 @@
 [
   {
-    "content": "Deploy project into /app (backend+frontend), preserve env, install deps, services running",
+    "content": "Confirm full deployment is accessible (storefront, staff login, customer cabinet, admin)",
     "status": "completed"
   },
   {
-    "content": "Verify test bypasses removed (test@customer.com) — confirmed already removed",
+    "content": "Security: move hardcoded secrets to env (Ringostat creds, JWT_SECRET, site-track key) + blank source defaults",
     "status": "completed"
   },
   {
-    "content": "Build Customer 2FA management block in CustomerCabinet Account Security (enable wizard w/ QR, verify, backup codes, disable, regenerate)",
+    "content": "Configure Stripe with provided test keys in integration_configs (DB source of truth) + enable",
     "status": "completed"
   },
   {
-    "content": "Add i18n EN/BG/UK keys for all customer 2FA UI",
+    "content": "Register Stripe webhook for preview domain + verify Test Connection (live ping)",
     "status": "completed"
   },
   {
-    "content": "Validate backend 2FA flow via POC (passed 100%)",
+    "content": "Seed staff accounts (admin/manager/team_lead) via env passwords — logins verified",
     "status": "completed"
   },
   {
-    "content": "Test full customer 2FA flow end-to-end (testing agent - 100% pass)",
+    "content": "Verify integrations health + smoke-test all 4 role logins & key endpoints",
     "status": "completed"
   },
   {
-    "content": "Final production readiness verification (health 11/11 workers, deployment scan PASS)",
+    "content": "Gitignore .env files (secrets protection)",
+    "status": "completed"
+  },
+  {
+    "content": "Final production-readiness summary",
     "status": "completed"
   }
 ]

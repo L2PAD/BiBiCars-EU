@@ -49,9 +49,9 @@ EVENT_CATEGORY = {
     "session_end":      "system",
 }
 
-# Public API key — set BIBI_SITE_TRACK_KEY in .env; defaults to a known
-# value so the demo tracker keeps working.
-INGEST_KEY = os.environ.get("BIBI_SITE_TRACK_KEY", "bibi-site-track-key-2026")
+# Public API key — set BIBI_SITE_TRACK_KEY in .env. Empty default means the
+# tracker requires an explicit key in production (no committed secret).
+INGEST_KEY = os.environ.get("BIBI_SITE_TRACK_KEY", "")
 
 
 def _now() -> datetime:
