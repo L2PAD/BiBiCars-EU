@@ -1180,6 +1180,11 @@ const TwoFactorSection = ({ t, getAuthHeaders, hasPassword }) => {
             </span>
           </p>
           <p className="text-xs text-[#71717A] mt-1 max-w-md">{t('cab_2fa_desc')}</p>
+          {enabled && status?.enabledAt && (
+            <p className="text-xs text-[#A1A1AA] mt-1" data-testid="2fa-enabled-at">
+              {t('cab_2fa_enabled_at')}: {new Date(status.enabledAt).toLocaleDateString()}
+            </p>
+          )}
           {enabled && (
             <p className="text-xs text-[#A1A1AA] mt-1" data-testid="2fa-backup-remaining">
               {remaining} {t('cab_2fa_backup_remaining')}
