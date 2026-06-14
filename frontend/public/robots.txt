@@ -52,5 +52,5 @@ User-agent: CCBot
 Disallow: /
 
 # Sitemaps
-Sitemap: https://bibi.cars/sitemap.xml
-Sitemap: https://bibi.cars/api/seo/sitemap.xml
+Sitemap: https://bibicars.eu/sitemap.xml
+Sitemap: https://bibicars.eu/api/seo/sitemap.xml

@@ -10,85 +10,85 @@
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
 
   <url>
-    <loc>https://bibi.cars/</loc>
+    <loc>https://bibicars.eu/</loc>
     <changefreq>daily</changefreq>
     <priority>1.00</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://bibi.cars/?lang=en"/>
-    <xhtml:link rel="alternate" hreflang="bg" href="https://bibi.cars/?lang=bg"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://bibi.cars/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://bibicars.eu/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://bibicars.eu/?lang=bg"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://bibicars.eu/"/>
   </url>
 
   <url>
-    <loc>https://bibi.cars/catalog</loc>
+    <loc>https://bibicars.eu/catalog</loc>
     <changefreq>hourly</changefreq>
     <priority>0.95</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://bibi.cars/catalog?lang=en"/>
-    <xhtml:link rel="alternate" hreflang="bg" href="https://bibi.cars/catalog?lang=bg"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://bibi.cars/catalog"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://bibicars.eu/catalog?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://bibicars.eu/catalog?lang=bg"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://bibicars.eu/catalog"/>
   </url>
 
   <url>
-    <loc>https://bibi.cars/calculator</loc>
+    <loc>https://bibicars.eu/calculator</loc>
     <changefreq>weekly</changefreq>
     <priority>0.90</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://bibi.cars/calculator?lang=en"/>
-    <xhtml:link rel="alternate" hreflang="bg" href="https://bibi.cars/calculator?lang=bg"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://bibi.cars/calculator"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://bibicars.eu/calculator?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://bibicars.eu/calculator?lang=bg"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://bibicars.eu/calculator"/>
   </url>
 
   <url>
-    <loc>https://bibi.cars/vin-check</loc>
+    <loc>https://bibicars.eu/vin-check</loc>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://bibi.cars/vin-check?lang=en"/>
-    <xhtml:link rel="alternate" hreflang="bg" href="https://bibi.cars/vin-check?lang=bg"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://bibi.cars/vin-check"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://bibicars.eu/vin-check?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://bibicars.eu/vin-check?lang=bg"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://bibicars.eu/vin-check"/>
   </url>
 
   <url>
-    <loc>https://bibi.cars/blog</loc>
+    <loc>https://bibicars.eu/blog</loc>
     <changefreq>daily</changefreq>
     <priority>0.70</priority>
   </url>
 
   <url>
-    <loc>https://bibi.cars/collections</loc>
+    <loc>https://bibicars.eu/collections</loc>
     <changefreq>weekly</changefreq>
     <priority>0.70</priority>
   </url>
 
   <url>
-    <loc>https://bibi.cars/about</loc>
+    <loc>https://bibicars.eu/about</loc>
     <changefreq>monthly</changefreq>
     <priority>0.60</priority>
   </url>
 
   <url>
-    <loc>https://bibi.cars/contacts</loc>
+    <loc>https://bibicars.eu/contacts</loc>
     <changefreq>monthly</changefreq>
     <priority>0.60</priority>
   </url>
 
   <url>
-    <loc>https://bibi.cars/privacy</loc>
+    <loc>https://bibicars.eu/privacy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.30</priority>
   </url>
 
   <url>
-    <loc>https://bibi.cars/terms</loc>
+    <loc>https://bibicars.eu/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.30</priority>
   </url>
 
   <url>
-    <loc>https://bibi.cars/cookies</loc>
+    <loc>https://bibicars.eu/cookies</loc>
     <changefreq>yearly</changefreq>
     <priority>0.30</priority>
   </url>
 
   <url>
-    <loc>https://bibi.cars/conditions</loc>
+    <loc>https://bibicars.eu/conditions</loc>
     <changefreq>yearly</changefreq>
     <priority>0.30</priority>
   </url>

@@ -1,22 +1,26 @@
 [
   {
-    "content": "Prove deployed code is 1:1 with GitHub (git diff) + fix admin login confusion",
+    "content": "Audit all 'emergent'/preview/cluster/domain refs in front+back",
     "status": "completed"
   },
   {
-    "content": "Smoke-test public storefront + CRM + security endpoints (physical proof)",
+    "content": "Remove unused emergentintegrations + litellm(emergentagent wheel) from requirements.txt",
     "status": "completed"
   },
   {
-    "content": "Comprehensive end-to-end audit via testing agent (all 4 roles, RBAC/security, 2FA, Stripe, Ringostat, key CRM flows)",
+    "content": "Clean hardcoded emergent preview URL from scripts (env-driven AUDIT_BASE_URL)",
     "status": "completed"
   },
   {
-    "content": "Fix any issues found in the audit (none critical found)",
+    "content": "Update SEO robots.txt + sitemap.xml domain bibi.cars -> bibicars.eu",
     "status": "completed"
   },
   {
-    "content": "Final audit report with physical confirmation",
+    "content": "Add PUBLIC_SITE_URL/PUBLIC_APP_URL/PUBLIC_BASE_URL/SEO_PUBLIC_ORIGIN=bibicars.eu so config/SEO resolve to domain (not emergent)",
+    "status": "completed"
+  },
+  {
+    "content": "Verify backend clean restart + 0 emergent refs in runtime code + healthy",
     "status": "completed"
   }
 ]

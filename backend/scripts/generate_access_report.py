@@ -5,11 +5,12 @@
   records HTTP status + a data-leak heuristic (non-trivial body on 200).
 """
 import json
+import os
 import re
 
 import httpx
 
-BU = "https://vehicle-booking-crm.preview.emergentagent.com"
+BU = os.environ.get("AUDIT_BASE_URL", "http://localhost:8001")
 ROUTES = json.load(open("/tmp/routes_clean.json"))
 
 PUBLIC_OK = re.compile(

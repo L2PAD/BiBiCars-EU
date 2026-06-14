@@ -10,6 +10,7 @@ For every GET route without path params:
 Anomalies (non-public still returning data, or public returning 401) are flagged.
 """
 import json
+import os
 import sys
 
 import httpx
@@ -17,7 +18,7 @@ import httpx
 sys.path.insert(0, "/app/backend")
 from app.middleware.access_gate import classify_path  # noqa: E402
 
-BU = "https://vehicle-booking-crm.preview.emergentagent.com"
+BU = os.environ.get("AUDIT_BASE_URL", "http://localhost:8001")
 ROUTES = json.load(open("/tmp/routes_clean.json"))
 
 tiers = {"public": [], "customer": [], "staff": []}
