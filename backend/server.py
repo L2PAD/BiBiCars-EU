@@ -48,7 +48,7 @@ from dataclasses import dataclass, field
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(override=False)
 
 from fastapi import FastAPI, HTTPException, Body, WebSocket, WebSocketDisconnect, Request, Response, Depends, Header, UploadFile, File, Query
 from fastapi.responses import JSONResponse
