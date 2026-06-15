@@ -550,7 +550,9 @@ export default function VesselFinderSessionPage() {
   //   1. EXTENSION HEALTH — heartbeat < 5min and cookies present
   //   2. VF FETCH HEALTH — did VesselFinder return vessels recently (cookies valid)
   //   3. MATCH HEALTH — did our target shipment match in the last fetches
-  const extensionOk = status?.heartbeatAgeSec != null && status.heartbeatAgeSec < 300 && status.cookiesCount > 0;
+  // Extension is alive purely on a fresh heartbeat. Cookies are read locally
+  // by the extension (never sent to the CRM), so cookiesCount is deprecated.
+  const extensionOk = status?.heartbeatAgeSec != null && status.heartbeatAgeSec < 300;
   const vfFetchOk = status?.lastVfFetchOkAt
     ? (Date.now() - new Date(status.lastVfFetchOkAt).getTime()) < 10 * 60 * 1000
     : false;
@@ -977,7 +979,7 @@ export default function VesselFinderSessionPage() {
           </div>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
-          <Stat label={t('cookiesLabel')} value={status?.cookiesCount ?? 0} icon={CheckCircle} tone={status?.cookiesCount ? 'emerald' : 'slate'} />
+          <Stat label={t('vfStatActiveShipments')} value={status?.activeShipments ?? 0} icon={CheckCircle} sub={status?.activeShipments ? t('vfStatTracking') : t('vfStatNothingTracked')} tone={status?.activeShipments ? 'emerald' : 'amber'} />
           <Stat label={t('heartbeatLabel')} value={status?.heartbeatAgeSec != null ? fmtAgo(status.lastHeartbeatAt) : '—'} sub={extensionOk ? t('vfStatExtAlive') : t('vfStatExtNoSignal')} tone={extensionOk ? 'emerald' : 'rose'} />
           <Stat label={t('vfStatVfResponds')} value={status?.vfFetchOkCount != null ? (status.vfFetchOkCount + (status?.successCount || 0)) : '—'} sub={status?.lastVfFetchOkAt ? fmtAgo(status.lastVfFetchOkAt) : (status?.lastSuccessAt ? fmtAgo(status.lastSuccessAt) : t('vfStatVfNoSuccess'))} tone={vfFetchOkOrMatch ? 'emerald' : 'slate'} />
           <Stat label={t('vfStatOurMatches')} value={status?.successCount ?? 0} sub={status?.lastSuccessAt ? fmtAgo(status.lastSuccessAt) : t('vfStatNoMatchesYet')} tone={matchOk ? 'emerald' : 'slate'} />

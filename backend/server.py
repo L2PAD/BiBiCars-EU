@@ -26516,6 +26516,180 @@ class VFTransferVesselRequest(BaseModel):
 # ═════════════════════════════════════════════════════════════════════
 
 
+# ═════════════════════════════════════════════════════════════════════
+# VESSELFINDER SESSION STATUS — rebuilt for the extension-only model.
+# ---------------------------------------------------------------------
+# The old server-side cookie/session endpoints were removed in Phase 2,
+# but the admin panel (VesselFinderSessionPage) + cabinet ShippingPage
+# still call them — so they 404'd and the panel showed "0 cookies / no
+# signal / nothing happening". These rebuilt endpoints derive HONEST
+# health from the real signals of the new model:
+#   • ext_heartbeat(provider=vesselfinder) → is the extension alive?
+#   • vf_payload_meta                       → did VF respond / did we match?
+#   • shipments(trackingActive+vessel)      → is there anything to track?
+# Cookies are read locally by the extension and never sent to the CRM,
+# so "cookiesCount" is intentionally deprecated (reported as null).
+# ═════════════════════════════════════════════════════════════════════
+async def _vf_session_status_payload() -> Dict[str, Any]:
+    now = datetime.now(timezone.utc)
+    # Counters are measured since the last admin "reset counters".
+    meta = await db.vf_session_meta.find_one({"_id": "vf_session"}) or {}
+    reset_at = meta.get("counters_reset_at")
+    time_filter: Dict[str, Any] = {}
+    if isinstance(reset_at, datetime):
+        if reset_at.tzinfo is None:
+            reset_at = reset_at.replace(tzinfo=timezone.utc)
+        time_filter = {"storedAt": {"$gte": reset_at}}
+
+    # ── Extension heartbeat ──
+    hb = await db.ext_heartbeat.find_one({"provider": "vesselfinder"}) or {}
+    last_hb = hb.get("lastHeartbeatAt")
+    hb_age = None
+    if isinstance(last_hb, datetime):
+        if last_hb.tzinfo is None:
+            last_hb = last_hb.replace(tzinfo=timezone.utc)
+        hb_age = int((now - last_hb).total_seconds())
+    online = hb_age is not None and hb_age < 300
+
+    # ── VF response / match telemetry from vf_payload_meta ──
+    vf_ok_count = await db.vf_payload_meta.count_documents({**time_filter, "ok": True})
+    match_count = await db.vf_payload_meta.count_documents({**time_filter, "matched": True})
+    last_ok = await db.vf_payload_meta.find_one({"ok": True}, sort=[("storedAt", -1)])
+    last_match = await db.vf_payload_meta.find_one({"matched": True}, sort=[("storedAt", -1)])
+
+    # consecutive trailing failures (most recent results first)
+    consec_fails = 0
+    last_fail_reason = None
+    async for d in db.vf_payload_meta.find({}, sort=[("storedAt", -1)]).limit(20):
+        if d.get("ok"):
+            break
+        consec_fails += 1
+        if last_fail_reason is None:
+            last_fail_reason = d.get("error") or "VF returned no usable payload"
+
+    # ── What is there to track? ──
+    active_shipments = await db.shipments.count_documents(
+        {"trackingActive": True, "vessel": {"$exists": True, "$ne": None}}
+    )
+    tracking_on = tracking_enabled()
+
+    # ── Honest session verdict + message ──
+    if not online:
+        session_status = "not_connected"
+        msg = "VesselFinder extension is offline — install it and keep a tab open so it can send data."
+    elif not tracking_on:
+        session_status = "paused"
+        msg = "Tracking is paused (TRACKING_ENABLED=false)."
+    elif active_shipments == 0:
+        session_status = "degraded"
+        msg = "Extension online, but no shipments are being tracked. Bind a vessel/container to a shipment and enable tracking."
+    elif consec_fails > 5:
+        session_status = "degraded"
+        msg = f"Extension online but VesselFinder is not returning data ({consec_fails} failures in a row) — VF cookies may have expired; re-open vesselfinder.com in the browser."
+    else:
+        session_status = "healthy"
+        msg = "Extension online and delivering vessel data."
+
+    return {
+        "model": "extension",            # tells the UI cookies live in the browser
+        "sessionStatus": session_status,
+        "sessionMessage": msg,
+        "online": online,
+        "lastHeartbeatAt": last_hb.isoformat() if isinstance(last_hb, datetime) else None,
+        "heartbeatAgeSec": hb_age,
+        "extensionVersion": hb.get("extensionVersion"),
+        "managerEmail": hb.get("managerEmail"),
+        # cookies are local-only now → explicitly deprecated
+        "cookiesCount": None,
+        # VF telemetry
+        "vfFetchOkCount": int(vf_ok_count),
+        "successCount": int(match_count),
+        "lastVfFetchOkAt": (last_ok.get("storedAt").isoformat()
+                            if last_ok and isinstance(last_ok.get("storedAt"), datetime) else None),
+        "lastSuccessAt": (last_match.get("storedAt").isoformat()
+                          if last_match and isinstance(last_match.get("storedAt"), datetime) else None),
+        "consecutiveFails": consec_fails,
+        "lastFailReason": last_fail_reason,
+        # context that explains "why nothing happens"
+        "activeShipments": int(active_shipments),
+        "trackingEnabled": tracking_on,
+        "serverTime": now.isoformat(),
+    }
+
+
+@fastapi_app.get("/api/vesselfinder/session/status")
+async def vf_session_status():
+    """Honest VesselFinder health for the admin panel + customer cabinet.
+
+    Public (read-only, non-sensitive) — allow-listed in access_gate so the
+    customer ShippingPage can show a tracking-health pill too.
+    """
+    try:
+        return await _vf_session_status_payload()
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning(f"[VF] session status failed: {e}")
+        return {"model": "extension", "sessionStatus": "not_connected",
+                "sessionMessage": "Status unavailable.", "online": False,
+                "cookiesCount": None, "vfFetchOkCount": 0, "successCount": 0,
+                "activeShipments": 0, "trackingEnabled": tracking_enabled()}
+
+
+@fastapi_app.post("/api/vesselfinder/session/test", dependencies=[Depends(require_manager_or_admin)])
+async def vf_session_test():
+    """'Check session' — re-reads live health. The server cannot ping VF
+    directly anymore (extension-only model), so this returns the current
+    honest status plus guidance."""
+    payload = await _vf_session_status_payload()
+    return {"ok": True, "checkedAt": payload["serverTime"], "status": payload,
+            "message": payload["sessionMessage"]}
+
+
+@fastapi_app.post("/api/vesselfinder/session/reset-counters", dependencies=[Depends(require_manager_or_admin)])
+async def vf_session_reset_counters():
+    """Reset VF success/response counters (counts are measured since this)."""
+    now = datetime.now(timezone.utc)
+    await db.vf_session_meta.update_one(
+        {"_id": "vf_session"},
+        {"$set": {"counters_reset_at": now}},
+        upsert=True,
+    )
+    return {"ok": True, "resetAt": now.isoformat()}
+
+
+@fastapi_app.delete("/api/vesselfinder/session", dependencies=[Depends(require_manager_or_admin)])
+async def vf_session_disconnect():
+    """Forget the last extension heartbeat (marks the uplink offline)."""
+    await db.ext_heartbeat.delete_many({"provider": "vesselfinder"})
+    return {"ok": True}
+
+
+@fastapi_app.get("/api/vesselfinder/vessels/search", dependencies=[Depends(require_manager_or_admin)])
+async def vf_vessels_search(bbox: str = "", query: str = ""):
+    """Server-side world sweep was removed (no server→VF network access in
+    the extension-only model). DB search still works; live vessel search is
+    disabled and clearly flagged so the UI degrades gracefully."""
+    q = (query or "").strip()
+    db_shipments: List[Dict[str, Any]] = []
+    if q:
+        try:
+            rx = {"$regex": q, "$options": "i"}
+            cur = db.shipments.find({"$or": [
+                {"id": rx}, {"containerNumber": rx},
+                {"vessel.name": rx}, {"vessel.mmsi": rx}, {"vessel.imo": rx},
+            ]}).limit(20)
+            async for s in cur:
+                db_shipments.append(serialize_doc(s) if 'serialize_doc' in globals() else {k: v for k, v in s.items() if k != "_id"})
+        except Exception as e:
+            logger.warning(f"[VF] vessels/search db error: {e}")
+    return {
+        "db": {"data": {"shipments": db_shipments, "deals": [], "vehicles": []}},
+        "live": {"vessels": [], "disabled": True},
+        "rich": {"results": []},
+        "message": "Live VesselFinder search is disabled (extension-only model). Showing CRM matches only.",
+    }
+
+
+
 
 
 @fastapi_app.post("/api/shipments/{shipment_id}/vessel", dependencies=[Depends(require_manager_or_admin)])
