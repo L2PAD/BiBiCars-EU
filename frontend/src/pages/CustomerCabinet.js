@@ -10,6 +10,7 @@ import ShipmentTrackingMap from '../components/shipping/ShipmentTrackingMap';
 import JourneyPanel from '../components/shipping/JourneyPanel';
 import PaymentMethodPicker from '../components/payments/PaymentMethodPicker';
 import CustomerOrders from '../components/cabinet/CustomerOrders';
+import { HelpTooltip } from '../components/ui/HelpTooltip';
 import { useShipmentNotifications } from '../hooks/useShipmentNotifications';
 import {
   House,
@@ -106,7 +107,42 @@ const STATUS_TO_STEP = {
 // Brand amber #FEAE00 → emerald #10B981 progress, used inside the
 // "Process Progress" card on the cabinet home. Node centres sit at
 // 10/30/50/70/90% of the row, so the connector spans left-[10%]→right-[10%].
-const ProcessTracker = ({ currentStep, t }) => {
+//
+// Every node state (completed / current / upcoming) is explained in plain
+// language: a small legend under the row + an on-hover tooltip on each step,
+// so the customer always understands what each colour/state means.
+const PROC_STATE = {
+  done: {
+    label: { en: 'Completed', ru: 'Завершён', bg: 'Завършен', uk: 'Завершено' },
+    desc: {
+      en: 'This step is complete.',
+      ru: 'Этот этап завершён.',
+      bg: 'Този етап е завършен.',
+      uk: 'Цей етап завершено.',
+    },
+  },
+  current: {
+    label: { en: 'In progress', ru: 'В процессе', bg: 'В процес', uk: 'В роботі' },
+    desc: {
+      en: 'We are working on this step right now.',
+      ru: 'Сейчас мы работаем над этим этапом.',
+      bg: 'В момента работим по този етап.',
+      uk: 'Зараз ми працюємо над цим етапом.',
+    },
+  },
+  upcoming: {
+    label: { en: 'Upcoming', ru: 'Ожидается', bg: 'Очаква', uk: 'Очікує' },
+    desc: {
+      en: 'This step is still ahead — not started yet.',
+      ru: 'Этот этап ещё впереди — пока не начат.',
+      bg: 'Този етап предстои — все още не е започнат.',
+      uk: 'Цей етап ще попереду — поки не розпочато.',
+    },
+  },
+};
+const procPick = (m, lang) => (m && (m[lang] || m.en)) || '';
+
+const ProcessTracker = ({ currentStep, t, lang = 'en' }) => {
   const total = PROCESS_STEPS.length;
   const fillPct = total > 1 ? (Math.max(0, Math.min(currentStep, total - 1)) / (total - 1)) * 80 : 0;
   return (
@@ -124,25 +160,49 @@ const ProcessTracker = ({ currentStep, t }) => {
           const Icon = step.icon;
           const done = idx < currentStep;
           const current = idx === currentStep;
+          const stateKey = done ? 'done' : current ? 'current' : 'upcoming';
+          const stepName = t(step.labelKey);
+          const tip = `${stepName} — ${procPick(PROC_STATE[stateKey].desc, lang)}`;
           let node = 'bg-[#222227] border border-[#34343A] text-[#71717A]';
           if (done) node = 'bg-emerald-500 border border-emerald-400 text-white shadow-[0_4px_14px_rgba(16,185,129,0.35)]';
           else if (current) node = 'bg-[#17171A] border-2 border-[#FEAE00] text-[#FEAE00] shadow-[0_0_0_4px_rgba(254,174,0,0.12)]';
           return (
-            <div key={step.code} className="flex flex-col items-center gap-2" data-testid={`process-step-${step.code}`}>
-              <div className={`relative z-10 w-11 h-11 rounded-2xl flex items-center justify-center transition-colors ${node}`}>
-                {done ? <Check size={20} weight="bold" /> : <Icon size={20} weight="duotone" />}
-                {current && (
-                  <span className="absolute inset-0 rounded-2xl border-2 border-[#FEAE00] animate-ping opacity-40" />
-                )}
+            <HelpTooltip key={step.code} text={tip}>
+              <div className="flex flex-col items-center gap-2 cursor-help" data-testid={`process-step-${step.code}`}>
+                <div className={`relative z-10 w-11 h-11 rounded-2xl flex items-center justify-center transition-colors ${node}`}>
+                  {done ? <Check size={20} weight="bold" /> : <Icon size={20} weight="duotone" />}
+                  {current && (
+                    <span className="absolute inset-0 rounded-2xl border-2 border-[#FEAE00] animate-ping opacity-40" />
+                  )}
+                </div>
+                <span className={`text-[10px] sm:text-[11px] text-center leading-tight font-medium ${
+                  current ? 'text-[#FEAE00]' : done ? 'text-zinc-100' : 'text-zinc-400'
+                }`}>
+                  {stepName}
+                </span>
               </div>
-              <span className={`text-[10px] sm:text-[11px] text-center leading-tight font-medium ${
-                current ? 'text-[#FEAE00]' : done ? 'text-zinc-100' : 'text-zinc-400'
-              }`}>
-                {t(step.labelKey)}
-              </span>
-            </div>
+            </HelpTooltip>
           );
         })}
+      </div>
+
+      {/* Plain-language legend — so the colours are never a mystery */}
+      <div
+        className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2"
+        data-testid="process-legend"
+      >
+        {[
+          { key: 'done', dot: 'bg-emerald-500' },
+          { key: 'current', dot: 'bg-[#FEAE00]' },
+          { key: 'upcoming', dot: 'bg-[#34343A] border border-[#52525B]' },
+        ].map((it) => (
+          <HelpTooltip key={it.key} text={procPick(PROC_STATE[it.key].desc, lang)}>
+            <span className="flex items-center gap-1.5 cursor-help" data-testid={`process-legend-${it.key}`}>
+              <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${it.dot}`} />
+              <span className="text-[11px] text-zinc-400">{procPick(PROC_STATE[it.key].label, lang)}</span>
+            </span>
+          </HelpTooltip>
+        ))}
       </div>
     </div>
   );
@@ -634,7 +694,7 @@ export const CabinetDashboard = () => {
             </p>
           </div>
 
-          <ProcessTracker currentStep={currentStep} t={t} />
+          <ProcessTracker currentStep={currentStep} t={t} lang={lang} />
 
           {latestTimeline && latestTimeline.length > 0 && (
             <div className="mt-7 pt-5 border-t border-[#27272A]">
@@ -734,7 +794,7 @@ export const CabinetDashboard = () => {
               <p className="text-[11px] uppercase tracking-[0.16em] text-zinc-500 font-semibold mb-5 text-center">
                 {t('adm_process_progress')}
               </p>
-              <ProcessTracker currentStep={0} t={t} />
+              <ProcessTracker currentStep={0} t={t} lang={lang} />
             </div>
 
             <div className="mt-8 flex justify-center">

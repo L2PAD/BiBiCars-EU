@@ -13,6 +13,7 @@ import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Car, CheckCircle, Circle } from '@phosphor-icons/react';
 import { ICON_BY_KEY, pickLabel, pickDescription } from '../roadmap/RoadmapStepper';
+import { HelpTooltip } from '../ui/HelpTooltip';
 
 // Brand tokens, hand-tuned for the dark cabinet surface (#17171A card).
 const AMBER = '#FEAE00';
@@ -26,6 +27,47 @@ const STATUS_LABELS = {
   pending: { en: 'Upcoming', ru: 'Ожидается', bg: 'Очаква', uk: 'Очікує' },
   blocked: { en: 'Blocked', ru: 'Заблокировано', bg: 'Блокирано', uk: 'Заблоковано' },
   skipped: { en: 'Skipped', ru: 'Пропущено', bg: 'Пропуснат', uk: 'Пропуснато' },
+};
+
+// Plain-language explanation for each stage status — shown on hover so the
+// customer always understands what a status means for their order.
+const STATUS_DESC = {
+  done: {
+    en: 'This stage is complete.',
+    ru: 'Этот этап завершён.',
+    bg: 'Този етап е завършен.',
+    uk: 'Цей етап завершено.',
+  },
+  completed: {
+    en: 'This stage is complete.',
+    ru: 'Этот этап завершён.',
+    bg: 'Този етап е завършен.',
+    uk: 'Цей етап завершено.',
+  },
+  in_progress: {
+    en: 'We are working on this stage right now.',
+    ru: 'Сейчас мы работаем над этим этапом.',
+    bg: 'В момента работим по този етап.',
+    uk: 'Зараз ми працюємо над цим етапом.',
+  },
+  pending: {
+    en: 'This stage is still ahead — not started yet.',
+    ru: 'Этот этап ещё впереди — пока не начат.',
+    bg: 'Този етап предстои — все още не е започнат.',
+    uk: 'Цей етап ще попереду — поки не розпочато.',
+  },
+  blocked: {
+    en: 'This stage is on hold — our team is resolving something and will keep you posted.',
+    ru: 'Этап приостановлен — мы решаем вопрос и сообщим вам об обновлениях.',
+    bg: 'Етапът е спрян — екипът ни решава въпрос и ще ви уведоми.',
+    uk: 'Етап призупинено — наша команда вирішує питання й повідомить вас.',
+  },
+  skipped: {
+    en: 'This stage was skipped — it is not needed for your order.',
+    ru: 'Этот этап пропущен — он не требуется для вашего заказа.',
+    bg: 'Този етап е пропуснат — не е необходим за вашата поръчка.',
+    uk: 'Цей етап пропущено — він не потрібен для вашого замовлення.',
+  },
 };
 
 const fmtDate = (iso, lang) => {
@@ -79,6 +121,8 @@ const StageRow = ({ stage, lang, isLast, index }) => {
   const desc = pickDescription(stage, lang);
   const sLabel = (STATUS_LABELS[status] || STATUS_LABELS.pending)[lang]
     || (STATUS_LABELS[status] || STATUS_LABELS.pending).en;
+  const sDesc = (STATUS_DESC[status] || STATUS_DESC.pending)[lang]
+    || (STATUS_DESC[status] || STATUS_DESC.pending).en;
   const date = stage.completed_at || stage.started_at;
 
   let node = 'bg-[#222227] border border-[#34343A] text-zinc-500';
@@ -124,9 +168,11 @@ const StageRow = ({ stage, lang, isLast, index }) => {
           <h3 className={`text-[15px] font-semibold leading-tight ${isCurrent ? 'text-[#FEAE00]' : 'text-zinc-100'}`}>
             {label}
           </h3>
-          <span className={`text-[10.5px] px-2 py-0.5 rounded-full font-medium ${pill}`}>
-            {sLabel}
-          </span>
+          <HelpTooltip text={sDesc}>
+            <span className={`text-[10.5px] px-2 py-0.5 rounded-full font-medium cursor-help ${pill}`} data-testid={`journey-status-${stage.key}`}>
+              {sLabel}
+            </span>
+          </HelpTooltip>
           {stage.sla_breached && !isDone && (
             <span className="text-[10.5px] px-2 py-0.5 rounded-full font-medium bg-red-500/15 text-red-400 border border-red-500/30">
               SLA
