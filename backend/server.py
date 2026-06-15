@@ -16053,6 +16053,32 @@ async def run_parser(source: str):
     elif source == "lemon" and lemon_sync_instance:
         lemon_sync_instance.start()
         return {"success": True, "message": f"{p.name} sync started", "status": p.status}
+    elif source in ("bidcars", "autoastat"):
+        # Served by the Chrome Extension — "start" arms the source and reports
+        # extension connectivity instead of pretending a server worker booted.
+        try:
+            clients = _ms_get_clients()
+        except Exception:
+            clients = []
+        online = [c for c in clients if c.get("online")]
+        if not online:
+            p.status = "standby"
+            return {
+                "success": False,
+                "needsExtension": True,
+                "status": "standby",
+                "extensionsOnline": 0,
+                "message": (
+                    f"{p.name}: armed, but no Chrome Extension is online. Install the "
+                    f"extension + paste the CRM access key (HMAC) to start receiving data."
+                ),
+            }
+        return {
+            "success": True,
+            "status": "active",
+            "extensionsOnline": len(online),
+            "message": f"{p.name} armed — {len(online)} extension(s) online.",
+        }
     
     return {"success": True, "message": f"{p.name} parser started", "status": p.status}
 
@@ -16147,10 +16173,195 @@ async def run_once_parser(source: str, data: Dict[str, Any] = Body(default={})):
             else:
                 return {"success": False, "message": "Lemon sync has no run-once method"}
             return {"success": True, "message": f"{p.name} run-once finished", "result": result}
+        elif source in ("bidcars", "autoastat"):
+            # CF-protected sources are served by the Chrome Extension, not the
+            # server. "Run" here = confirm a client is online to deliver data.
+            try:
+                clients = _ms_get_clients()
+            except Exception:
+                clients = []
+            online = [c for c in clients if c.get("online")]
+            p.enabled = True
+            p.status = "active"
+            if not online:
+                return {
+                    "success": False,
+                    "needsExtension": True,
+                    "message": (
+                        f"{p.name}: no Chrome Extension online. Install the extension, "
+                        f"set Backend URL + CRM access key (HMAC), then it will deliver data."
+                    ),
+                    "extensionsOnline": 0,
+                }
+            return {
+                "success": True,
+                "message": f"{p.name} armed — {len(online)} extension(s) online delivering data.",
+                "extensionsOnline": len(online),
+            }
         return {"success": False, "message": f"run-once not implemented for {source}"}
     except Exception as e:
         logger.exception(f"[parsers/run-once] {source} failed: {e}")
         return {"success": False, "message": f"{p.name} run-once failed: {e}"}
+
+# ═══════════════════════════════════════════════════════════════════
+# ENGINE SELF-HEAL — install the heavy Playwright stack on admin command
+# ───────────────────────────────────────────────────────────────────
+# Lets an admin "deploy" the bid.cars Playwright engine (playwright +
+# playwright_stealth + chromium browser) straight from the panel, without
+# a code redeploy. Useful when a fresh prod image shipped without the
+# browser binaries ("Missing playwright_stealth module").
+#
+# NOTE (honest): even with the engine installed, bid.cars stays behind
+# Cloudflare — server-side Playwright will hit CF challenges. The reliable
+# data path for bid.cars / CF sites is the Chrome Extension. This button
+# only clears the "engine missing" state; it does not bypass Cloudflare.
+# ═══════════════════════════════════════════════════════════════════
+_engine_install_state: Dict[str, Any] = {
+    "status": "idle",          # idle | running | success | error
+    "source": None,
+    "log": [],
+    "started_at": None,
+    "finished_at": None,
+    "message": "",
+}
+
+
+def _engine_probe() -> Dict[str, Any]:
+    """Synchronously check whether the Playwright engine is usable."""
+    out = {"playwright": False, "playwright_stealth": False, "chromium": False}
+    try:
+        import playwright  # noqa: F401
+        out["playwright"] = True
+    except Exception:
+        pass
+    try:
+        import playwright_stealth  # noqa: F401
+        out["playwright_stealth"] = True
+    except Exception:
+        pass
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as _p:
+            _b = _p.chromium.launch(headless=True)
+            _b.close()
+        out["chromium"] = True
+    except Exception:
+        pass
+    out["ready"] = all((out["playwright"], out["playwright_stealth"], out["chromium"]))
+    return out
+
+
+async def _run_engine_install(source: str) -> None:
+    """Background task: pip install playwright stack + chromium browser."""
+    import sys as _sys
+    st = _engine_install_state
+    st.update({"status": "running", "source": source, "log": [],
+               "started_at": datetime.now(timezone.utc).isoformat(),
+               "finished_at": None, "message": "Installing engine…"})
+
+    async def _exec(cmd: List[str], label: str) -> int:
+        st["log"].append(f"$ {label}")
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            assert proc.stdout is not None
+            async for raw in proc.stdout:
+                line = raw.decode(errors="replace").rstrip()
+                if line:
+                    st["log"].append(line)
+                    if len(st["log"]) > 400:
+                        del st["log"][:200]  # keep tail bounded
+            return await proc.wait()
+        except Exception as e:  # pragma: no cover - defensive
+            st["log"].append(f"[exec error] {e}")
+            return 1
+
+    try:
+        rc1 = await _exec(
+            [_sys.executable, "-m", "pip", "install", "--no-input",
+             "playwright==1.58.0", "playwright-stealth==2.0.3"],
+            "pip install playwright playwright-stealth",
+        )
+        rc2 = await _exec(
+            [_sys.executable, "-m", "playwright", "install", "chromium"],
+            "playwright install chromium",
+        )
+        # System libs (best-effort; often needs root — non-fatal if it fails)
+        await _exec(
+            [_sys.executable, "-m", "playwright", "install-deps", "chromium"],
+            "playwright install-deps chromium (best-effort)",
+        )
+
+        probe = await asyncio.get_event_loop().run_in_executor(None, _engine_probe)
+        st["probe"] = probe
+        if probe.get("ready"):
+            # Flip runtime availability + readiness so the card stops saying "missing".
+            try:
+                import importlib
+                import bidcars_parser as _bcp
+                importlib.reload(_bcp)
+                globals()["BIDCARS_AVAILABLE"] = True
+                p = PARSER_REGISTRY.get("bidcars")
+                if p:
+                    p.readiness = "needs_config"
+                    p.readiness_detail = (
+                        "Engine installed. bid.cars is still Cloudflare-protected — "
+                        "use the Chrome Extension for reliable data; server-side "
+                        "Playwright may hit CF challenges."
+                    )
+            except Exception as e:
+                st["log"].append(f"[reload warn] {e}")
+            st.update({"status": "success",
+                       "message": "Engine installed and verified.",
+                       "finished_at": datetime.now(timezone.utc).isoformat()})
+        else:
+            st.update({"status": "error",
+                       "message": f"Install finished but engine still not ready (rc1={rc1}, rc2={rc2}).",
+                       "finished_at": datetime.now(timezone.utc).isoformat()})
+    except Exception as e:
+        logger.exception(f"[engine-install] {source} failed: {e}")
+        st.update({"status": "error", "message": f"Install failed: {e}",
+                   "finished_at": datetime.now(timezone.utc).isoformat()})
+
+
+@fastapi_app.get("/api/ingestion/admin/parsers/{source}/engine-status",
+                 dependencies=[Depends(require_admin)])
+async def parser_engine_status(source: str):
+    """Report whether the heavy parser engine is installed + any install job."""
+    probe = await asyncio.get_event_loop().run_in_executor(None, _engine_probe)
+    st = _engine_install_state
+    return {
+        "success": True,
+        "source": source,
+        "needsEngine": source == "bidcars",
+        "engine": probe,
+        "install": {
+            "status": st.get("status"),
+            "source": st.get("source"),
+            "message": st.get("message"),
+            "startedAt": st.get("started_at"),
+            "finishedAt": st.get("finished_at"),
+            "log": st.get("log", [])[-60:],
+        },
+    }
+
+
+@fastapi_app.post("/api/ingestion/admin/parsers/{source}/install-engine",
+                  dependencies=[Depends(require_master_admin)])
+async def parser_install_engine(source: str):
+    """Install/deploy the Playwright engine for a parser on admin command."""
+    if source != "bidcars":
+        return {"success": False, "message": f"{source}: no installable engine (uses public HTTP/sitemap or the Chrome Extension)."}
+    if _engine_install_state.get("status") == "running":
+        return {"success": False, "message": "Engine install already running.", "status": "running"}
+    # Fire-and-forget background task; UI polls engine-status.
+    asyncio.create_task(_run_engine_install(source))
+    return {"success": True, "message": "Engine install started. Poll engine-status for progress.", "status": "running"}
+
+
 
 @fastapi_app.post("/api/ingestion/admin/parsers/{source}/configure", dependencies=[Depends(require_master_admin)])
 async def configure_parser(source: str, data: Dict[str, Any] = Body(...)):

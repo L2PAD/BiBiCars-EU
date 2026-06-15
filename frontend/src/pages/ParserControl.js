@@ -1697,7 +1697,7 @@ const readinessLabel = (t, readiness) => {
   }
 };
 
-const LiveParserCard = ({ parser, busy, canManage, onAction, t, lang }) => {
+const LiveParserCard = ({ parser, busy, canManage, onAction, onInstallEngine, engineInfo, t, lang }) => {
   const {
     source, name, type, status, readiness, readinessDetail,
     lastRunAt, lastSuccessAt, itemsParsed, itemsCreated, errorsCount,
@@ -1708,7 +1708,13 @@ const LiveParserCard = ({ parser, busy, canManage, onAction, t, lang }) => {
   const typeCls = TYPE_PILL_LIGHT[type] || TYPE_PILL_LIGHT.passive;
   const dotCls  = STATUS_DOT_LIGHT[status] || STATUS_DOT_LIGHT.standby;
   const circuitOpen = circuitState === 'open';
-  const canRun = canManage && readiness === 'ready' && !busy;
+  // Extension/passive/playwright sources are driven by the Chrome Extension —
+  // they never reach readiness "ready" but MUST still be runnable (Run = arm +
+  // report extension connectivity). Only a truly "broken" engine blocks them.
+  const isExtSource = ['extension', 'passive', 'playwright'].includes(type)
+    || source === 'bidcars' || source === 'autoastat';
+  const engineMissing = readiness === 'broken' || /missing/i.test(readinessDetail || '');
+  const canRun = canManage && !busy && (readiness === 'ready' || (isExtSource && !engineMissing));
   const lastTime = formatRelativeIntl(lastRunAt || lastSuccessAt, lang) || '—';
 
   const Metric = ({ icon: Icon, label, value, danger }) => (
@@ -1784,6 +1790,38 @@ const LiveParserCard = ({ parser, busy, canManage, onAction, t, lang }) => {
         )}
       </div>
 
+      {/* Engine self-heal — install Playwright stack on admin command */}
+      {canManage && engineMissing && source === 'bidcars' && (
+        <div className="mb-3" data-testid={`live-parser-engine-${source}`}>
+          <button
+            type="button"
+            disabled={engineInfo?.status === 'running'}
+            onClick={() => onInstallEngine(source)}
+            className="w-full inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg bg-violet-600 hover:bg-violet-700 text-[12px] font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            data-testid={`live-parser-install-engine-${source}`}
+          >
+            {engineInfo?.status === 'running'
+              ? <CircleNotch size={12} className="animate-spin shrink-0" />
+              : <Download size={12} weight="duotone" className="shrink-0" />}
+            <span className="truncate">
+              {engineInfo?.status === 'running'
+                ? (t('pc_engine_installing') || 'Installing engine…')
+                : (t('pc_engine_install') || 'Install engine')}
+            </span>
+          </button>
+          {engineInfo?.message && engineInfo?.status !== 'running' && (
+            <p className={`text-[11px] mt-1.5 leading-snug ${engineInfo.status === 'success' ? 'text-emerald-600' : 'text-red-600'}`}>
+              {engineInfo.message}
+            </p>
+          )}
+          {engineInfo?.log?.length > 0 && (
+            <pre className="mt-2 max-h-28 overflow-y-auto rounded-lg bg-[#0A0A09] text-[#A1A1AA] text-[10px] leading-relaxed p-2 font-mono whitespace-pre-wrap break-words">
+              {engineInfo.log.slice(-12).join('\n')}
+            </pre>
+          )}
+        </div>
+      )}
+
       {canManage && (
         <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[#E4E4E7]">
           <button
@@ -1855,6 +1893,8 @@ const LiveParsersPanel = ({ canManage }) => {
   // derives `max_pages` from `max_vehicles` (≈30 cars/page on bitmotors).
   // Default 1000 — a reasonable upper bound for a single manual sweep.
   const [vehicleLimit, setVehicleLimit] = useState(1000);
+  // Per-source engine-install (playwright stack) progress, keyed by source.
+  const [engineState, setEngineState] = useState({});
 
   const authHeaders = useMemo(
     () => (token ? { Authorization: `Bearer ${token}` } : {}),
@@ -1919,7 +1959,13 @@ const LiveParsersPanel = ({ canManage }) => {
         const resultDescr = res.data?.result
           ? `pages=${res.data.result.pages_scraped ?? '—'} found=${res.data.result.vehicles_found ?? '—'} new=${res.data.result.new ?? 0}`
           : (res.data?.message || res.data?.detail || undefined);
-        toast.success(successMsg, { description: resultDescr });
+        // Respect the backend's own success flag — extension sources return
+        // success:false / needsExtension when no client is online.
+        if (res.data && res.data.success === false) {
+          toast.warning(successMsg, { description: resultDescr, duration: 7000 });
+        } else {
+          toast.success(successMsg, { description: resultDescr });
+        }
         fetchParsers(true);
         return res.data;
       } catch (e) {
@@ -1949,6 +1995,56 @@ const LiveParsersPanel = ({ canManage }) => {
       }
     },
     [authHeaders, fetchParsers, canManage, t, vehicleLimit],
+  );
+
+  // ── Engine self-heal: install the Playwright stack on admin command ──
+  // Posts /install-engine, then polls /engine-status every 3s until the
+  // background install reports success|error. Surfaces a live log.
+  const installEngine = useCallback(
+    async (source) => {
+      if (!canManage) return;
+      setEngineState((s) => ({
+        ...s,
+        [source]: { status: 'running', log: [], message: t('pc_engine_starting') || 'Starting engine install…' },
+      }));
+      try {
+        await axios.post(
+          `${API_URL}/api/ingestion/admin/parsers/${source}/install-engine`,
+          {},
+          { headers: authHeaders, timeout: 30000 },
+        );
+      } catch (e) {
+        const msg = e?.response?.data?.message || e?.response?.data?.detail || e.message;
+        setEngineState((s) => ({ ...s, [source]: { status: 'error', log: [], message: msg } }));
+        toast.error(t('pc_engine_install_fail') || 'Engine install failed', { description: msg });
+        return;
+      }
+      const poll = setInterval(async () => {
+        try {
+          const r = await axios.get(
+            `${API_URL}/api/ingestion/admin/parsers/${source}/engine-status`,
+            { headers: authHeaders, timeout: 15000 },
+          );
+          const inst = r.data?.install || {};
+          setEngineState((s) => ({
+            ...s,
+            [source]: { status: inst.status, log: inst.log || [], message: inst.message },
+          }));
+          if (inst.status === 'success' || inst.status === 'error') {
+            clearInterval(poll);
+            if (inst.status === 'success') {
+              toast.success(t('pc_engine_installed') || 'Engine installed & verified');
+            } else {
+              toast.error(t('pc_engine_install_fail') || 'Engine install failed', { description: inst.message });
+            }
+            fetchParsers(true);
+          }
+        } catch {
+          /* transient — keep polling */
+        }
+      }, 3000);
+    },
+    [authHeaders, canManage, t, fetchParsers],
   );
 
   const runAll = useCallback(async () => {
@@ -2148,6 +2244,8 @@ const LiveParsersPanel = ({ canManage }) => {
               busy={busy[p.source]}
               canManage={canManage}
               onAction={callAction}
+              onInstallEngine={installEngine}
+              engineInfo={engineState[p.source]}
               t={t}
               lang={lang}
             />
