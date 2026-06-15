@@ -143,6 +143,9 @@ _CUSTOMER = _compile([
 # demanding a bearer (which the extension/worker never sends).
 _EXTENSION = _compile([
     r"/api/ext/(heartbeat|jobs|observation|push|register)(/.*)?",
+    # Read-only health/registry endpoints — safe to expose so the extension's
+    # connectivity probe and the admin panel can read them without a bearer.
+    r"/api/ext/(health|clients|degraded|drifting|result)(/.*)?",
     r"/api/vesselfinder/(heartbeat|jobs)(/.*)?",
 ])
 

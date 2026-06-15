@@ -888,6 +888,64 @@ PARSER_REGISTRY: Dict[str, ParserEntry] = {
             "/api/ingestion/admin/parsers/lemon/stats",
         ],
     ),
+    # ── Extension-served Cloudflare sources ──────────────────────────────
+    # These auction sites are gated by Cloudflare and CANNOT be scraped
+    # server-side. The Chrome Extension scrapes them in the operator's
+    # browser and POSTs results to the CRM. They are surfaced here so the
+    # admin sees every source; their live status reflects extension uplink.
+    "poctra": ParserEntry(
+        source="poctra",
+        name="Poctra",
+        type="extension",
+        enabled=False,
+        status="standby",
+        readiness="needs_config",
+        readiness_detail=(
+            "Cloudflare-protected (poctra.com). Served by the Chrome Extension "
+            "in the operator's browser — install the extension + CRM access key "
+            "(HMAC) to start receiving data."
+        ),
+        endpoints=["/api/ingestion/admin/parsers/poctra/run"],
+    ),
+    "carsfromwest": ParserEntry(
+        source="carsfromwest",
+        name="CarsFromWest",
+        type="extension",
+        enabled=False,
+        status="standby",
+        readiness="needs_config",
+        readiness_detail=(
+            "Cloudflare-protected (carsfromwest.com). Served by the Chrome "
+            "Extension — install it + CRM access key (HMAC) to receive data."
+        ),
+        endpoints=["/api/ingestion/admin/parsers/carsfromwest/run"],
+    ),
+    "autoauctionhistory": ParserEntry(
+        source="autoauctionhistory",
+        name="AuctionHistory",
+        type="extension",
+        enabled=False,
+        status="standby",
+        readiness="needs_config",
+        readiness_detail=(
+            "Cloudflare-protected (autoauctionhistory.com). Served by the Chrome "
+            "Extension — install it + CRM access key (HMAC) to receive data."
+        ),
+        endpoints=["/api/ingestion/admin/parsers/autoauctionhistory/run"],
+    ),
+    "salvagebid": ParserEntry(
+        source="salvagebid",
+        name="SalvageBid",
+        type="extension",
+        enabled=False,
+        status="standby",
+        readiness="needs_config",
+        readiness_detail=(
+            "Cloudflare-protected (salvagebid.com). Served by the Chrome "
+            "Extension — install it + CRM access key (HMAC) to receive data."
+        ),
+        endpoints=["/api/ingestion/admin/parsers/salvagebid/run"],
+    ),
 }
 
 # ═══════════════════════════════════════════════════════════════════
@@ -15955,6 +16013,33 @@ async def ingestion_parsers():
                 entry["itemsParsed"] = count
             except Exception:
                 pass
+        elif key in ("poctra", "carsfromwest", "autoauctionhistory", "salvagebid"):
+            # Extension-served CF sources: reactive per-VIN lookups (no bulk
+            # catalogue). Surface real lookup stats + honest uplink status.
+            try:
+                _h = _ms_health() or {}
+                _src = (_h.get("sources") or {}).get(key) or {}
+                entry["itemsParsed"] = int(_src.get("hits") or 0)
+                entry["errorsCount"] = int(_src.get("errors") or 0)
+                entry["documentsInDB"] = int(_src.get("hits") or 0)
+            except Exception:
+                pass
+            try:
+                _online = sum(1 for c in _ms_get_clients() if c.get("online"))
+            except Exception:
+                _online = 0
+            entry["extensionSessions"] = _online
+            if _online > 0:
+                entry["status"] = "active"
+                entry["enabled"] = True
+                entry["readiness"] = "ready"
+                entry["readinessDetail"] = (
+                    f"Chrome Extension online ({_online}) — this source is served "
+                    "on demand when managers look up a VIN."
+                )
+            else:
+                entry["status"] = "standby"
+                entry["readiness"] = "needs_config"
 
         result.append(entry)
     
@@ -16053,7 +16138,7 @@ async def run_parser(source: str):
     elif source == "lemon" and lemon_sync_instance:
         lemon_sync_instance.start()
         return {"success": True, "message": f"{p.name} sync started", "status": p.status}
-    elif source in ("bidcars", "autoastat"):
+    elif source in ("bidcars", "autoastat") or (p and p.type in ("extension", "passive")):
         # Served by the Chrome Extension — "start" arms the source and reports
         # extension connectivity instead of pretending a server worker booted.
         try:
@@ -16173,7 +16258,7 @@ async def run_once_parser(source: str, data: Dict[str, Any] = Body(default={})):
             else:
                 return {"success": False, "message": "Lemon sync has no run-once method"}
             return {"success": True, "message": f"{p.name} run-once finished", "result": result}
-        elif source in ("bidcars", "autoastat"):
+        elif source in ("bidcars", "autoastat") or (p and p.type in ("extension", "passive")):
             # CF-protected sources are served by the Chrome Extension, not the
             # server. "Run" here = confirm a client is online to deliver data.
             try:
@@ -16226,8 +16311,14 @@ _engine_install_state: Dict[str, Any] = {
 }
 
 
-def _engine_probe() -> Dict[str, Any]:
-    """Synchronously check whether the Playwright engine is usable."""
+def _engine_probe(deep: bool = False) -> Dict[str, Any]:
+    """Check whether the Playwright engine is usable.
+
+    By default this is LIGHTWEIGHT (import checks only) so it is safe to call
+    on every status poll. Launching a real Chromium is expensive and, on a
+    constrained pod, repeatedly doing so starves the thread-pool and times out
+    other endpoints — so the browser launch test only runs when deep=True.
+    """
     out = {"playwright": False, "playwright_stealth": False, "chromium": False}
     try:
         import playwright  # noqa: F401
@@ -16239,15 +16330,25 @@ def _engine_probe() -> Dict[str, Any]:
         out["playwright_stealth"] = True
     except Exception:
         pass
-    try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as _p:
-            _b = _p.chromium.launch(headless=True)
-            _b.close()
-        out["chromium"] = True
-    except Exception:
-        pass
-    out["ready"] = all((out["playwright"], out["playwright_stealth"], out["chromium"]))
+    if deep and out["playwright"]:
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as _p:
+                _b = _p.chromium.launch(headless=True)
+                _b.close()
+            out["chromium"] = True
+        except Exception:
+            out["chromium"] = False
+    else:
+        # Cheap heuristic: chromium browser binary present in the cache dir.
+        try:
+            import glob as _glob
+            import os as _os
+            cache = _os.path.expanduser("~/.cache/ms-playwright")
+            out["chromium"] = bool(_glob.glob(_os.path.join(cache, "chromium-*")))
+        except Exception:
+            out["chromium"] = False
+    out["ready"] = bool(out["playwright"] and out["playwright_stealth"] and out["chromium"])
     return out
 
 
@@ -16295,7 +16396,7 @@ async def _run_engine_install(source: str) -> None:
             "playwright install-deps chromium (best-effort)",
         )
 
-        probe = await asyncio.get_event_loop().run_in_executor(None, _engine_probe)
+        probe = await asyncio.get_event_loop().run_in_executor(None, _engine_probe, True)
         st["probe"] = probe
         if probe.get("ready"):
             # Flip runtime availability + readiness so the card stops saying "missing".
@@ -22608,10 +22709,14 @@ async def control_overview():
 
     # ── compose unified source rows ───────────────────────────────────────
     def status_for(calls: int, errors: int, healthy: bool, drifting: bool, degraded: bool) -> str:
+        # Honest lifecycle: a source with NO traffic is "idle" (grey), never
+        # green "ok". Green is reserved for sources actually serving data.
         if not healthy or degraded:
             return "down"
         if drifting:
             return "drift"
+        if (calls or 0) <= 0:
+            return "idle"
         if errors > 0 and calls > 0 and (errors / max(calls, 1)) > 0.2:
             return "warn"
         return "ok"
@@ -22637,7 +22742,11 @@ async def control_overview():
                      + int(bm_page.get("total_calls") or 0)),
             3,
         ),
-        "status": "down" if bm_open else "ok",
+        "status": "down" if bm_open else status_for(
+            int(bm_search.get("total_calls") or 0) + int(bm_page.get("total_calls") or 0),
+            int(bm_search.get("total_failures") or 0) + int(bm_page.get("total_failures") or 0),
+            True, False, False,
+        ),
         "circuit_open": bm_open,
     })
 
@@ -22655,7 +22764,7 @@ async def control_overview():
         "latency_p50_ms": wm_p50,
         "latency_p95_ms": int(wm_status_doc.get("latency_p95_ms") or 0),
         "hit_ratio": round(wm_hits / max(1, wm_calls), 3) if wm_calls else 0.0,
-        "status": "ok",
+        "status": status_for(wm_calls, wm_errs, True, False, False),
     })
 
     lm_calls = int(lemon_status_doc.get("total_lookups") or 0)
@@ -22671,14 +22780,14 @@ async def control_overview():
         "latency_p50_ms": int(lemon_status_doc.get("latency_p50_ms") or 0),
         "latency_p95_ms": int(lemon_status_doc.get("latency_p95_ms") or 0),
         "hit_ratio": round(lm_hits / max(1, lm_calls), 3) if lm_calls else 0.0,
-        "status": "ok",
+        "status": status_for(lm_calls, lm_errs, True, False, False),
     })
 
     aa = sources.get("auctionauto") or {}
     aa_status = (
         "down" if aa.get("circuit_open") else
         "drift" if aa.get("drifting") else
-        "ok"
+        status_for(int(aa.get("calls") or 0), int(aa.get("errors") or 0), True, False, False)
     )
     rows.append({
         "key": "auctionauto",
@@ -22705,7 +22814,10 @@ async def control_overview():
         "latency_p95_ms": ext_layer_p95,
         "hit_ratio": round(ext_layer_hits / max(1, ext_layer_calls), 3)
                      if ext_layer_calls else 0.0,
-        "status": "down" if ext_clients_online == 0 else "ok",
+        "status": (
+            "down" if ext_clients_online == 0
+            else status_for(ext_layer_calls, ext_layer_errs, True, False, False)
+        ),
         "clients_online": ext_clients_online,
         "subsources": ext_caps,
     })
@@ -22719,9 +22831,12 @@ async def control_overview():
     # offline — that's a partial degradation, not a full outage.
     primary_keys = {"bitmotors", "westmotors", "lemon", "auctionauto"}
     primary_rows = [r for r in rows if r["key"] in primary_keys]
-    primary_up = [r for r in primary_rows if r["status"] == "ok"]
+    # "available" = functional (idle just means ready-but-unused, NOT broken).
+    primary_available = [r for r in primary_rows if r["status"] in ("ok", "idle", "warn", "drift")]
+    primary_serving = [r for r in primary_rows if r["status"] == "ok"]
     primary_down = [r for r in primary_rows if r["status"] == "down"]
     ext_down = (ext_clients_online == 0)
+    total_calls_all = sum(int(r.get("calls") or 0) for r in rows)
 
     alerts: list[str] = []
     if ext_down:
@@ -22751,19 +22866,25 @@ async def control_overview():
                 f"(success rate {int((c.get('success_rate_recent') or 0)*100)}%)"
             )
 
-    # ── Status decision tree (primary-first) ─────────────────────────────
-    if not primary_up:
+    # ── Status decision tree (primary-first, honest) ────────────────────
+    if not primary_available:
         # ZERO primary sources available — parser cannot serve VINs at all.
-        # This is the only true "DEGRADED" state.
         system_status = "red"
         system_label = "DEGRADED"
-    elif primary_down or ext_down or any(r["status"] in ("warn", "drift") for r in primary_rows):
-        # At least 1 primary source is up — parser IS serving VINs, but
-        # not at 100% capacity (some sources offline / extension offline).
+    elif primary_down or any(r["status"] in ("warn", "drift") for r in primary_rows):
+        # A primary source is broken/degraded while others still serve.
+        system_status = "yellow"
+        system_label = "PARTIAL"
+    elif total_calls_all == 0:
+        # Everything is functional but nothing has run yet — be honest: IDLE,
+        # not a green "OK" (no data has actually flowed).
+        system_status = "idle"
+        system_label = "IDLE"
+    elif ext_down:
+        # Traffic is flowing on primaries but the CF extension layer is offline.
         system_status = "yellow"
         system_label = "PARTIAL"
     else:
-        # All primary sources OK + extension layer OK.
         system_status = "green"
         system_label = "OK"
 
@@ -22784,6 +22905,11 @@ async def control_overview():
     # Build human-readable reason explaining current system status
     if system_status == "green":
         reason = "All primary sources + extension layer healthy"
+    elif system_status == "idle":
+        reason = (
+            f"{len(primary_available)}/{len(primary_rows)} primary source(s) ready — "
+            "no lookups have run yet (idle)"
+        )
     elif system_status == "yellow":
         reason_parts = []
         if primary_down:
@@ -22799,7 +22925,7 @@ async def control_overview():
                 f"{len(warn_rows)} source(s) elevated error rate"
             )
         reason = (
-            f"Parser ACTIVE via {len(primary_up)}/{len(primary_rows)} primary source(s)"
+            f"Parser ACTIVE via {len(primary_serving)}/{len(primary_rows)} primary source(s)"
             + (" • " + " • ".join(reason_parts) if reason_parts else "")
         )
     else:  # red
@@ -22810,7 +22936,7 @@ async def control_overview():
             "status": system_status,
             "label": system_label,
             "reason": reason,
-            "primary_up": [r["key"] for r in primary_up],
+            "primary_up": [r["key"] for r in primary_serving],
             "primary_down": [r["key"] for r in primary_down],
         },
         "extension": {

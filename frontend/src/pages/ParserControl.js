@@ -95,6 +95,14 @@ const STATUS_PRESET = {
     text: 'text-red-700',
     dot: 'bg-red-500',
   },
+  idle: {
+    label: 'IDLE',
+    bg: 'bg-slate-400',
+    bgSoft: 'bg-slate-100',
+    border: 'border-slate-200',
+    text: 'text-slate-600',
+    dot: 'bg-slate-400',
+  },
 };
 
 const TIER_ICON = {
@@ -143,14 +151,17 @@ const SystemStatusBar = ({ system, alerts }) => {
   const status = system?.status || 'green';
   const isRed = status === 'red';
   const isYellow = status === 'yellow';
-  const dot = isRed ? '#DC2626' : isYellow ? '#F59E0B' : '#16A34A';
-  const Icon = isRed ? XCircle : isYellow ? Warning : ShieldCheck;
+  const isIdle = status === 'idle';
+  const dot = isRed ? '#DC2626' : isYellow ? '#F59E0B' : isIdle ? '#94A3B8' : '#16A34A';
+  const Icon = isRed ? XCircle : isYellow ? Warning : isIdle ? Clock : ShieldCheck;
   const headline = isRed
     ? 'SYSTEM DEGRADED'
     : isYellow
     ? 'SYSTEM PARTIAL'
+    : isIdle
+    ? 'SYSTEM IDLE'
     : 'SYSTEM HEALTHY';
-  const chipTextCls = isRed ? 'text-[#DC2626]' : isYellow ? 'text-[#B45309]' : 'text-[#15803D]';
+  const chipTextCls = isRed ? 'text-[#DC2626]' : isYellow ? 'text-[#B45309]' : isIdle ? 'text-slate-500' : 'text-[#15803D]';
 
   const backendReason = system?.reason;
   const reasonItems = Array.isArray(alerts) ? alerts.slice(0, 2) : [];
@@ -467,9 +478,11 @@ const ExtensionStatusCard = ({ extension, canManage, onOpenExtensionTab }) => {
 // ── 3. Source row ───────────────────────────────────────
 const SourceRow = ({ row }) => {
   const { t } = useLang();
-  const preset = STATUS_PRESET[row.status] || STATUS_PRESET.ok;
+  const preset = STATUS_PRESET[row.status] || STATUS_PRESET.idle;
   const TierIcon = TIER_ICON[row.tier] || Plugs;
   const tierMeta = TIER_META[row.tier] || TIER_META.HTTP;
+  const statusLabel = (STATUS_PRESET[row.status] || STATUS_PRESET.idle).label;
+  const statusGlyph = row.status === 'drift' ? '⚠' : '●';
   return (
     <div
       className="bg-white rounded-xl border border-[#E4E4E7] p-3 sm:p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4"
@@ -504,13 +517,7 @@ const SourceRow = ({ row }) => {
         <span
           className={`sm:hidden text-[10px] px-2 py-1 rounded-md font-bold uppercase tracking-wider shrink-0 ${preset.bgSoft} ${preset.text} border ${preset.border}`}
         >
-          {row.status === 'ok'
-            ? 'OK'
-            : row.status === 'down'
-            ? 'DOWN'
-            : row.status === 'drift'
-            ? 'DRIFT'
-            : 'WARN'}
+          {statusLabel}
         </span>
       </div>
       <div className="grid grid-cols-4 gap-2 sm:gap-6 flex-1 min-w-0">
@@ -553,13 +560,7 @@ const SourceRow = ({ row }) => {
         <span
           className={`text-[10px] px-2 py-1 rounded-md font-bold uppercase tracking-wider ${preset.bgSoft} ${preset.text} border ${preset.border}`}
         >
-          {row.status === 'ok'
-            ? '● OK'
-            : row.status === 'down'
-            ? '● DOWN'
-            : row.status === 'drift'
-            ? '⚠ DRIFT'
-            : '● WARN'}
+          {statusGlyph} {statusLabel}
         </span>
         {row.circuit_open && (
           <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-red-50 text-red-700 border border-red-200">
@@ -643,9 +644,10 @@ const PerformancePanel = ({ performance }) => {
   const errorRate = performance?.error_rate || 0;
   const totalCalls = performance?.total_calls ?? 0;
 
-  // rollup: BAD if error>{t('adm_20_warn_if_hit')}<50% (and any traffic), OK otherwise.
-  let rollup = 'ok';
+  // rollup: honest — IDLE (grey) when no traffic; otherwise OK/WARN/BAD.
+  let rollup = 'idle';
   if (totalCalls > 0) {
+    rollup = 'ok';
     if (errorRate > 0.2) rollup = 'bad';
     else if (hitRate < 0.5) rollup = 'warn';
   }
@@ -669,6 +671,12 @@ const PerformancePanel = ({ performance }) => {
       text: 'text-red-700',
       border: 'border-red-200',
     },
+    idle: {
+      label: t('pc_status_idle'),
+      bg: 'bg-slate-100',
+      text: 'text-slate-600',
+      border: 'border-slate-200',
+    },
   }[rollup];
 
   const tiles = [
@@ -682,13 +690,13 @@ const PerformancePanel = ({ performance }) => {
     },
     {
       label: t('adm_hit_rate'),
-      value: `${Math.round(hitRate * 100)}%`,
-      tone: hitRate >= 0.7 ? 'ok' : hitRate >= 0.4 ? 'warn' : 'down',
+      value: totalCalls > 0 ? `${Math.round(hitRate * 100)}%` : '—',
+      tone: totalCalls === 0 ? 'idle' : hitRate >= 0.7 ? 'ok' : hitRate >= 0.4 ? 'warn' : 'down',
     },
     {
       label: t('adm_error_rate'),
-      value: `${Math.round(errorRate * 100)}%`,
-      tone: errorRate <= 0.05 ? 'ok' : errorRate <= 0.2 ? 'warn' : 'down',
+      value: totalCalls > 0 ? `${Math.round(errorRate * 100)}%` : '—',
+      tone: totalCalls === 0 ? 'idle' : errorRate <= 0.05 ? 'ok' : errorRate <= 0.2 ? 'warn' : 'down',
     },
     {
       label: t('adm_total_calls'),
@@ -1717,6 +1725,21 @@ const LiveParserCard = ({ parser, busy, canManage, onAction, onInstallEngine, en
   const canRun = canManage && !busy && (readiness === 'ready' || (isExtSource && !engineMissing));
   const lastTime = formatRelativeIntl(lastRunAt || lastSuccessAt, lang) || '—';
 
+  // ── Single consolidated status (no more "Ready" + "Paused" double pill) ──
+  const isRunning = status === 'active' || status === 'running';
+  let statusPill;
+  if (engineMissing) {
+    statusPill = { label: t('pc_status_engine_missing'), cls: 'bg-red-50 text-red-700 border-red-200', dot: 'bg-red-500' };
+  } else if (isRunning) {
+    statusPill = { label: t('pc_status_running'), cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500 animate-pulse' };
+  } else if (readiness === 'needs_config' || readiness === 'incomplete') {
+    statusPill = { label: readinessLabel(t, readiness), cls: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' };
+  } else if (readiness === 'ready') {
+    statusPill = { label: t('pc_status_idle'), cls: 'bg-slate-100 text-slate-600 border-slate-200', dot: 'bg-slate-400' };
+  } else {
+    statusPill = { label: readinessLabel(t, 'unknown'), cls: 'bg-slate-100 text-slate-600 border-slate-200', dot: 'bg-slate-400' };
+  }
+
   const Metric = ({ icon: Icon, label, value, danger }) => (
     <div className="flex items-center gap-2 rounded-lg bg-[#FAFAFA] border border-[#E4E4E7] px-2.5 py-2 min-w-0">
       <Icon size={14} weight="duotone" className={`shrink-0 ${danger ? 'text-red-500' : 'text-[#71717A]'}`} />
@@ -1737,7 +1760,7 @@ const LiveParserCard = ({ parser, busy, canManage, onAction, onInstallEngine, en
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 min-w-0">
-            <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${dotCls}`} />
+            <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${statusPill.dot}`} />
             <h3 className="text-[14px] font-semibold text-[#18181B] truncate">{name}</h3>
           </div>
           <p className="text-[11px] text-[#71717A] mt-0.5 truncate font-mono">{source}</p>
@@ -1749,24 +1772,14 @@ const LiveParserCard = ({ parser, busy, canManage, onAction, onInstallEngine, en
 
       <div className="flex flex-wrap gap-1.5 items-center mb-3">
         <span
-          className={`text-[11px] px-2 py-0.5 rounded-md border font-medium ${readinessClass}`}
-          data-testid={`live-parser-readiness-${source}`}
+          className={`text-[11px] px-2 py-0.5 rounded-md border font-semibold ${statusPill.cls}`}
+          data-testid={`live-parser-status-${source}`}
         >
-          {readinessLabel(t, readiness)}
+          {statusPill.label}
         </span>
         {circuitOpen && (
           <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border bg-red-50 text-red-700 border-red-200 font-medium">
             <ShieldSlash size={12} weight="duotone" /> {t('pc_circuit_open')}
-          </span>
-        )}
-        {isPaused && (
-          <span className="text-[11px] px-2 py-0.5 rounded-md border bg-amber-50 text-amber-700 border-amber-200 font-medium">
-            {t('pc_paused')}
-          </span>
-        )}
-        {apiKeyConfigured === false && (
-          <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border bg-amber-50 text-amber-700 border-amber-200 font-medium">
-            <Gear size={12} weight="duotone" /> {t('pc_apikey_missing')}
           </span>
         )}
       </div>
@@ -1826,7 +1839,7 @@ const LiveParserCard = ({ parser, busy, canManage, onAction, onInstallEngine, en
         <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[#E4E4E7]">
           <button
             type="button"
-            disabled={!canRun}
+            disabled={!canRun || isRunning}
             onClick={() => onAction(source, 'run-once', { successKey: 'pc_msg_run_once_started', name })}
             className="inline-flex items-center justify-center gap-1.5 h-9 px-2 rounded-lg bg-white border border-[#E4E4E7] hover:border-[#18181B] text-[12px] font-medium text-[#18181B] disabled:opacity-40 disabled:cursor-not-allowed transition-colors min-w-0"
             data-testid={`live-parser-run-once-${source}`}
@@ -1838,7 +1851,7 @@ const LiveParserCard = ({ parser, busy, canManage, onAction, onInstallEngine, en
           </button>
           <button
             type="button"
-            disabled={!canRun || status === 'running'}
+            disabled={!canRun || isRunning}
             onClick={() => onAction(source, 'run', { successKey: 'pc_msg_run_started', name })}
             className="inline-flex items-center justify-center gap-1.5 h-9 px-2 rounded-lg bg-[#18181B] hover:bg-[#27272A] text-[12px] font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors min-w-0"
             data-testid={`live-parser-run-${source}`}
@@ -1850,7 +1863,7 @@ const LiveParserCard = ({ parser, busy, canManage, onAction, onInstallEngine, en
           </button>
           <button
             type="button"
-            disabled={busy || status !== 'running'}
+            disabled={!!busy || !isRunning}
             onClick={() => onAction(source, 'stop', { successKey: 'pc_msg_stop_signal', name })}
             className="inline-flex items-center justify-center gap-1.5 h-9 px-2 rounded-lg bg-white border border-red-200 hover:bg-red-50 text-[12px] font-medium text-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors min-w-0"
             data-testid={`live-parser-stop-${source}`}

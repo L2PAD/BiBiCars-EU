@@ -1,30 +1,42 @@
 [
   {
-    "content": "Configure Resend (apiKey + from=bibicars.eu); delivery via auto-fallback (branded domain pending verification in this Resend account)",
+    "content": "Overview/Resolver health: честные статусы (idle/down вместо фейкового OK)",
     "status": "completed"
   },
   {
-    "content": "Default team_lead OTP recipient = nname.dao@gmail.com (admin-configurable)",
+    "content": "Overview Performance: честный агрегат (IDLE)",
     "status": "completed"
   },
   {
-    "content": "Team_lead OTP email delivery (login + resend) with designed template; code emailed AND in admin panel",
+    "content": "Карточки: один статус вместо двух",
     "status": "completed"
   },
   {
-    "content": "Admin UI for recipient config + pending OTP viewer (AdminSecurityPage.jsx)",
+    "content": "Карточки: логика Run/Stop",
     "status": "completed"
   },
   {
-    "content": "Customer email-verification modal verified (register -> code -> modal)",
+    "content": "Install engine timeout: lightweight probe",
     "status": "completed"
   },
   {
-    "content": "Build customer Email-OTP 2FA method (backend + login challenge + cabinet UI + login modal + i18n)",
+    "content": "Показать ВСЕ 9 парсеров (poctra, carsfromwest, auctionhistory, salvagebid)",
     "status": "completed"
   },
   {
-    "content": "End-to-end test all email/OTP flows (testing agent: backend 100%, frontend 95%, all features working)",
+    "content": "Терминология: 'Ключ доступу до CRM (HMAC)' в админке = расширение",
+    "status": "completed"
+  },
+  {
+    "content": "Debug «не удалось достучаться»: раскорнено = Cloudflare блокирует (бэкенд OK). + открыты ext/health,clients",
+    "status": "completed"
+  },
+  {
+    "content": "Extension popup: честный статус 'доступний' (polish, опционально)",
+    "status": "pending"
+  },
+  {
+    "content": "Реальный учёт: inDB/lookups по источнику (базово сделано)",
     "status": "completed"
   }
 ]
