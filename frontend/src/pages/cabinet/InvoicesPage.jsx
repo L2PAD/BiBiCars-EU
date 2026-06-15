@@ -20,12 +20,23 @@ import {
 } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import PaymentMethodPicker from '../../components/payments/PaymentMethodPicker';
+import { HelpTooltip } from '../../components/ui/HelpTooltip';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 
+// Plain-language explanation of each invoice status — shown on hover.
+const INVOICE_DESC = {
+  pending: { en: 'Awaiting payment — please pay to continue your order.', ru: 'Ожидает оплаты — пожалуйста, оплатите, чтобы продолжить заказ.', bg: 'Очаква плащане — моля, платете, за да продължите поръчката.', uk: 'Очікує оплати — будь ласка, сплатіть, щоб продовжити замовлення.' },
+  paid: { en: 'Paid — this invoice has been settled. Thank you!', ru: 'Оплачено — счёт оплачен. Спасибо!', bg: 'Платено — фактурата е платена. Благодарим!', uk: 'Сплачено — рахунок оплачено. Дякуємо!' },
+  cancelled: { en: 'Cancelled — this invoice is no longer due.', ru: 'Отменено — счёт больше не требует оплаты.', bg: 'Отказана — фактурата вече не дължи плащане.', uk: 'Скасовано — рахунок більше не потребує оплати.' },
+  expired: { en: 'Expired — the payment window closed. Contact us to reissue.', ru: 'Просрочено — срок оплаты истёк. Свяжитесь с нами для перевыпуска.', bg: 'Изтекла — срокът за плащане изтече. Свържете се с нас за преиздаване.', uk: 'Прострочено — термін оплати минув. Зв’яжіться з нами для перевипуску.' },
+  refunded: { en: 'Refunded — the amount has been returned to you.', ru: 'Возвращено — сумма возвращена вам.', bg: 'Възстановена — сумата е върната.', uk: 'Повернено — суму повернено вам.' },
+};
+const invPick = (m, l) => (m && (m[l] || m.en)) || '';
+
 // Status Badge
 const StatusBadge = ({ status }) => {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const config = {
     pending: { color: 'amber', icon: Clock, label: t('adm3_3c747863fa') },
     paid: { color: 'emerald', icon: CheckCircle, label: t('adm3_6d8c085082') },
@@ -35,10 +46,15 @@ const StatusBadge = ({ status }) => {
   };
   const { color, icon: Icon, label } = config[status] || config.pending;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-${color}-100 text-${color}-700`}>
-      <Icon size={12} />
-      {label}
-    </span>
+    <HelpTooltip text={invPick(INVOICE_DESC[status] || INVOICE_DESC.pending, lang)}>
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium cursor-help bg-${color}-100 text-${color}-700`}
+        data-testid={`invoice-status-${status}`}
+      >
+        <Icon size={12} />
+        {label}
+      </span>
+    </HelpTooltip>
   );
 };
 

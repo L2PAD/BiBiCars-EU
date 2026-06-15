@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { useShipmentNotifications } from '../../hooks/useShipmentNotifications';
 import ShipmentTrackingMap from '../../components/shipping/ShipmentTrackingMap';
 import JourneyPanel from '../../components/shipping/JourneyPanel';
+import { HelpTooltip } from '../../components/ui/HelpTooltip';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 
@@ -41,9 +42,29 @@ const STATUS_CONFIG = {
   cancelled: { color: 'red', icon: Clock, label: 'Cancelled', step: -1 },
 };
 
+// Plain-language explanation of each delivery status — shown on hover so the
+// customer always understands where their vehicle is.
+const DELIVERY_DESC = {
+  pending: { en: 'Awaiting pickup — the carrier has not collected the vehicle yet.', ru: 'Ожидает отправки — перевозчик ещё не забрал автомобиль.', bg: 'Очаква изпращане — превозвачът още не е взел автомобила.', uk: 'Очікує відправлення — перевізник ще не забрав автомобіль.' },
+  picked_up: { en: 'Picked up — the vehicle has been collected and is heading to the port.', ru: 'Забрано — автомобиль получен и направляется в порт.', bg: 'Взет — автомобилът е поет и пътува към пристанището.', uk: 'Забрано — автомобіль отримано й прямує до порту.' },
+  in_transit: { en: 'In transit — the vehicle is on the move (road or sea).', ru: 'В пути — автомобиль перемещается (по суше или морю).', bg: 'В транзит — автомобилът се движи (по суша или море).', uk: 'В дорозі — автомобіль рухається (суходолом або морем).' },
+  at_port: { en: 'At port — the vehicle reached a port and awaits the next leg.', ru: 'В порту — автомобиль прибыл в порт и ожидает следующего этапа.', bg: 'На пристанище — автомобилът е на пристанище и чака следващия етап.', uk: 'У порту — автомобіль прибув у порт і очікує наступного етапу.' },
+  customs_clearance: { en: 'Customs — the vehicle is going through customs clearance.', ru: 'Таможня — автомобиль проходит таможенное оформление.', bg: 'Митница — автомобилът минава митническо оформяне.', uk: 'Митниця — автомобіль проходить митне оформлення.' },
+  delivered: { en: 'Delivered — the vehicle has arrived and been handed over.', ru: 'Доставлено — автомобиль прибыл и передан вам.', bg: 'Доставен — автомобилът пристигна и е предаден.', uk: 'Доставлено — автомобіль прибув і переданий вам.' },
+  cancelled: { en: 'Cancelled — this shipment was cancelled.', ru: 'Отменено — эта отправка отменена.', bg: 'Отказан — тази пратка е отменена.', uk: 'Скасовано — це відправлення скасовано.' },
+};
+
+// Live-tracking signal quality explanation.
+const LIVE_DESC = {
+  Live: { en: 'Live — real GPS coordinates updated within the last 10 minutes.', ru: 'В реальном времени — реальные GPS-координаты обновлены за последние 10 минут.', bg: 'На живо — реални GPS координати, обновени през последните 10 минути.', uk: 'У реальному часі — реальні GPS-координати оновлено за останні 10 хвилин.' },
+  Estimated: { en: 'Estimated — position is approximated (interpolated or older than 10 minutes).', ru: 'Оценочно — положение приблизительное (интерполяция или данные старше 10 минут).', bg: 'Прогнозно — позицията е приблизителна (интерполация или по-стара от 10 минути).', uk: 'Орієнтовно — позиція приблизна (інтерполяція або дані старші за 10 хвилин).' },
+  'No data': { en: 'No data — no live position is available for this shipment yet.', ru: 'Нет данных — для этой отправки пока нет данных о местоположении.', bg: 'Няма данни — все още няма данни за позицията на тази пратка.', uk: 'Немає даних — для цього відправлення поки немає даних про місцезнаходження.' },
+};
+const shipPick = (m, l) => (m && (m[l] || m.en)) || '';
+
 // Progress Steps
 const ProgressSteps = ({ currentStatus }) => {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const steps = ['pending', 'picked_up', 'in_transit', 'at_port', 'customs_clearance', 'delivered'];
   const currentStep = STATUS_CONFIG[currentStatus]?.step || 0;
   
@@ -57,18 +78,20 @@ const ProgressSteps = ({ currentStatus }) => {
         
         return (
           <React.Fragment key={step}>
-            <div className="flex flex-col items-center">
-              <div 
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all
-                  ${isActive ? `bg-${config.color}-500 text-white` : 'bg-zinc-200 text-zinc-400'}
-                  ${isCurrent ? 'ring-4 ring-blue-200 scale-110' : ''}`}
-              >
-                <Icon size={20} weight={isActive ? 'fill' : 'regular'} />
+            <HelpTooltip text={`${config.label} — ${shipPick(DELIVERY_DESC[step], lang)}`}>
+              <div className="flex flex-col items-center cursor-help" data-testid={`delivery-step-${step}`}>
+                <div 
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all
+                    ${isActive ? `bg-${config.color}-500 text-white` : 'bg-zinc-200 text-zinc-400'}
+                    ${isCurrent ? 'ring-4 ring-blue-200 scale-110' : ''}`}
+                >
+                  <Icon size={20} weight={isActive ? 'fill' : 'regular'} />
+                </div>
+                <span className={`text-xs mt-2 ${isActive ? 'text-zinc-900 font-medium' : 'text-zinc-400'}`}>
+                  {config.label}
+                </span>
               </div>
-              <span className={`text-xs mt-2 ${isActive ? 'text-zinc-900 font-medium' : 'text-zinc-400'}`}>
-                {config.label}
-              </span>
-            </div>
+            </HelpTooltip>
             
             {index < steps.length - 1 && (
               <div className={`flex-1 h-1 mx-2 rounded ${currentStep > config.step ? 'bg-emerald-500' : 'bg-zinc-200'}`} />
@@ -105,7 +128,7 @@ const TimelineEvent = ({ event, isLast }) => {
 
 // Shipment Card
 const ShipmentCard = ({ shipment, expanded, onToggle, liveUpdate }) => {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const config = STATUS_CONFIG[shipment.status] || STATUS_CONFIG.pending;
   const Icon = config.icon;
 
@@ -158,18 +181,24 @@ const ShipmentCard = ({ shipment, expanded, onToggle, liveUpdate }) => {
             </div>
           </div>
           <div className="flex flex-col items-end gap-1.5">
-            <span
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${livePill.cls}`}
-              data-testid="live-pill"
-              title={`Tracking source: ${shipment.trackingSource || 'unknown'}`}
-            >
-              <span className={`w-2 h-2 rounded-full ${livePill.dot} ${livePill.dot.includes('emerald') ? 'animate-pulse' : ''}`} />
-              {livePill.text}
-            </span>
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-${config.color}-100 text-${config.color}-700`}>
-              <Icon size={12} />
-              {config.label}
-            </span>
+            <HelpTooltip text={shipPick(LIVE_DESC[livePill.text], lang)}>
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border cursor-help ${livePill.cls}`}
+                data-testid="live-pill"
+              >
+                <span className={`w-2 h-2 rounded-full ${livePill.dot} ${livePill.dot.includes('emerald') ? 'animate-pulse' : ''}`} />
+                {livePill.text}
+              </span>
+            </HelpTooltip>
+            <HelpTooltip text={shipPick(DELIVERY_DESC[shipment.status] || DELIVERY_DESC.pending, lang)}>
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium cursor-help bg-${config.color}-100 text-${config.color}-700`}
+                data-testid="delivery-status-pill"
+              >
+                <Icon size={12} />
+                {config.label}
+              </span>
+            </HelpTooltip>
           </div>
         </div>
 

@@ -13,8 +13,17 @@ import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { io } from 'socket.io-client';
+import { useLang } from '../../i18n';
+import { HelpTooltip } from '../../components/ui/HelpTooltip';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+
+// Plain-language explanation of the two watchlist states — shown on hover.
+const WATCH_DESC = {
+  pending: { en: 'Pending — we are watching this VIN. You will be notified the moment it appears at auction.', ru: 'Ожидание — мы отслеживаем этот VIN. Вы получите уведомление, как только он появится на аукционе.', bg: 'Изчакване — следим този VIN. Ще получите известие веднага щом се появи на търг.', uk: 'Очікування — ми відстежуємо цей VIN. Ви отримаєте сповіщення щойно він з’явиться на аукціоні.' },
+  matched: { en: 'Matched — this VIN has been found! Open it to see the details.', ru: 'Найдено — этот VIN найден! Откройте, чтобы посмотреть детали.', bg: 'Намерено — този VIN е намерен! Отворете, за да видите детайлите.', uk: 'Знайдено — цей VIN знайдено! Відкрийте, щоб побачити деталі.' },
+};
+const watchPick = (m, l) => (m && (m[l] || m.en)) || '';
 
 const fmtTime = (iso) => {
   if (!iso) return '—';
@@ -29,6 +38,7 @@ const fmtTime = (iso) => {
 export default function WatchlistPage() {
   const navigate = useNavigate();
   const { customerId } = useParams();
+  const { lang } = useLang();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(null);
@@ -146,9 +156,11 @@ export default function WatchlistPage() {
           <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
             <Bell size={13} className="text-amber-600" />
           </div>
-          <h2 className="font-semibold text-[#18181B] text-[14px]">
-            Pending ({pending.length})
-          </h2>
+          <HelpTooltip text={watchPick(WATCH_DESC.pending, lang)}>
+            <h2 className="font-semibold text-[#18181B] text-[14px] cursor-help" data-testid="watchlist-pending-header">
+              Pending ({pending.length})
+            </h2>
+          </HelpTooltip>
           <span className="text-[11px] text-[#A1A1AA] ml-2">
             We scan BidMotors every hour — you'll be pinged instantly when any of these appear.
           </span>
@@ -204,9 +216,11 @@ export default function WatchlistPage() {
             <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center">
               <Check size={13} className="text-emerald-600" />
             </div>
-            <h2 className="font-semibold text-[#18181B] text-[14px]">
-              Matched ({notified.length})
-            </h2>
+            <HelpTooltip text={watchPick(WATCH_DESC.matched, lang)}>
+              <h2 className="font-semibold text-[#18181B] text-[14px] cursor-help" data-testid="watchlist-matched-header">
+                Matched ({notified.length})
+              </h2>
+            </HelpTooltip>
           </div>
           <ul className="divide-y divide-[#F4F4F5]">
             {notified.map((it) => (
