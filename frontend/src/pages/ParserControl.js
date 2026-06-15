@@ -60,8 +60,20 @@ import { useAuth, API_URL } from '../App';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { useLang } from '../i18n';
 import PromotionStatsPanel from '../components/admin/PromotionStatsPanel';
+import { HelpTooltip } from '../components/ui/HelpTooltip';
 
 const POLL_INTERVAL = 5000;
+
+// Maps a per-source status to a plain-language explanation key. Keeps the
+// short uppercase chip (OK/WARN/DRIFT/DOWN/IDLE) but makes every status
+// understandable on hover for admins, managers and customers alike.
+const STATUS_DESC_KEY = {
+  ok: 'pc_st_desc_ok',
+  warn: 'pc_st_desc_warn',
+  drift: 'pc_st_desc_drift',
+  down: 'pc_st_desc_down',
+  idle: 'pc_st_desc_idle',
+};
 
 const STATUS_PRESET = {
   ok: {
@@ -163,6 +175,13 @@ const SystemStatusBar = ({ system, alerts }) => {
     ? 'SYSTEM IDLE'
     : 'SYSTEM HEALTHY';
   const chipTextCls = isRed ? 'text-[#DC2626]' : isYellow ? 'text-[#B45309]' : isIdle ? 'text-slate-500' : 'text-[#15803D]';
+  const sysDesc = isRed
+    ? t('pc_sys_desc_red')
+    : isYellow
+    ? t('pc_sys_desc_yellow')
+    : isIdle
+    ? t('pc_sys_desc_idle')
+    : t('pc_sys_desc_green');
 
   const backendReason = system?.reason;
   const reasonItems = Array.isArray(alerts) ? alerts.slice(0, 2) : [];
@@ -234,7 +253,9 @@ const SystemStatusBar = ({ system, alerts }) => {
           <p className="text-[10px] uppercase tracking-wider text-[#71717A]">
             {t('adm_status')}
           </p>
-          <p className={`text-[15px] font-bold ${chipTextCls}`}>{system?.label || '—'}</p>
+          <HelpTooltip text={sysDesc} side="bottom" align="end">
+            <p className={`text-[15px] font-bold cursor-help ${chipTextCls}`} data-testid="system-status-value">{system?.label || '—'}</p>
+          </HelpTooltip>
         </div>
       </div>
     </div>
@@ -518,6 +539,7 @@ const SourceRow = ({ row }) => {
   const TierIcon = TIER_ICON[row.tier] || Plugs;
   const tierMeta = TIER_META[row.tier] || TIER_META.HTTP;
   const statusLabel = (STATUS_PRESET[row.status] || STATUS_PRESET.idle).label;
+  const statusDesc = t(STATUS_DESC_KEY[row.status] || 'pc_st_desc_idle');
   const statusGlyph = row.status === 'drift' ? '⚠' : '●';
   return (
     <div
@@ -550,11 +572,14 @@ const SourceRow = ({ row }) => {
           </div>
         </div>
         {/* Mobile status pill — inline with title */}
-        <span
-          className={`sm:hidden text-[10px] px-2 py-1 rounded-md font-bold uppercase tracking-wider shrink-0 ${preset.bgSoft} ${preset.text} border ${preset.border}`}
-        >
-          {statusLabel}
-        </span>
+        <HelpTooltip text={statusDesc}>
+          <span
+            className={`sm:hidden text-[10px] px-2 py-1 rounded-md font-bold uppercase tracking-wider shrink-0 cursor-help ${preset.bgSoft} ${preset.text} border ${preset.border}`}
+            data-testid={`source-status-mobile-${row.key}`}
+          >
+            {statusLabel}
+          </span>
+        </HelpTooltip>
       </div>
       <div className="grid grid-cols-4 gap-2 sm:gap-6 flex-1 min-w-0">
         <div className="min-w-0">
@@ -593,11 +618,14 @@ const SourceRow = ({ row }) => {
         </div>
       </div>
       <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
-        <span
-          className={`text-[10px] px-2 py-1 rounded-md font-bold uppercase tracking-wider ${preset.bgSoft} ${preset.text} border ${preset.border}`}
-        >
-          {statusGlyph} {statusLabel}
-        </span>
+        <HelpTooltip text={statusDesc}>
+          <span
+            className={`text-[10px] px-2 py-1 rounded-md font-bold uppercase tracking-wider cursor-help ${preset.bgSoft} ${preset.text} border ${preset.border}`}
+            data-testid={`source-status-${row.key}`}
+          >
+            {statusGlyph} {statusLabel}
+          </span>
+        </HelpTooltip>
         {row.circuit_open && (
           <span className="text-[10px] px-2 py-0.5 rounded-md font-medium bg-red-50 text-red-700 border border-red-200">
             circuit open
@@ -637,6 +665,38 @@ const SourcesGrid = ({ sources }) => {
         <p className="text-[11px] text-[#A1A1AA] leading-snug">
           {t('adm_resolver_chain_order_live_index_http_ext')}
         </p>
+      </div>
+
+      {/* Status legend — always visible so OK/WARN/DRIFT/DOWN/IDLE are clear
+          to admins, managers and anyone else. Hover any item for the full
+          explanation. */}
+      <div
+        className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-[#E4E4E7] bg-[#FAFAFA] px-3.5 py-2.5"
+        data-testid="status-legend"
+      >
+        {[
+          { key: 'ok', short: 'pc_st_short_ok', desc: 'pc_st_desc_ok' },
+          { key: 'warn', short: 'pc_st_short_warn', desc: 'pc_st_desc_warn' },
+          { key: 'drift', short: 'pc_st_short_drift', desc: 'pc_st_desc_drift' },
+          { key: 'down', short: 'pc_st_short_down', desc: 'pc_st_desc_down' },
+          { key: 'idle', short: 'pc_st_short_idle', desc: 'pc_st_desc_idle' },
+        ].map((item) => {
+          const p = STATUS_PRESET[item.key] || STATUS_PRESET.idle;
+          return (
+            <HelpTooltip key={item.key} text={t(item.desc)}>
+              <span
+                className="flex items-center gap-1.5 cursor-help"
+                data-testid={`legend-${item.key}`}
+              >
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${p.dot}`} />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#52525B]">
+                  {p.label}
+                </span>
+                <span className="text-[11px] text-[#71717A]">— {t(item.short)}</span>
+              </span>
+            </HelpTooltip>
+          );
+        })}
       </div>
 
       {effectiveDisabled > 0 && (
@@ -715,6 +775,13 @@ const PerformancePanel = ({ performance }) => {
     },
   }[rollup];
 
+  const rollupDesc = {
+    ok: t('pc_st_desc_ok'),
+    warn: t('pc_st_desc_warn'),
+    bad: t('pc_st_desc_down'),
+    idle: t('pc_st_desc_idle'),
+  }[rollup];
+
   const tiles = [
     {
       label: t('cmp_p50_latency'),
@@ -749,12 +816,14 @@ const PerformancePanel = ({ performance }) => {
         >
           PERFORMANCE
         </h2>
-        <span
-          className={`text-[11px] px-2.5 py-1 rounded-md font-bold uppercase tracking-wider border ${rollupMeta.bg} ${rollupMeta.text} ${rollupMeta.border}`}
-          data-testid="performance-rollup"
-        >
-          {rollupMeta.label}
-        </span>
+        <HelpTooltip text={rollupDesc} side="bottom" align="end">
+          <span
+            className={`text-[11px] px-2.5 py-1 rounded-md font-bold uppercase tracking-wider border cursor-help ${rollupMeta.bg} ${rollupMeta.text} ${rollupMeta.border}`}
+            data-testid="performance-rollup"
+          >
+            {rollupMeta.label}
+          </span>
+        </HelpTooltip>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {tiles.map((t) => (
