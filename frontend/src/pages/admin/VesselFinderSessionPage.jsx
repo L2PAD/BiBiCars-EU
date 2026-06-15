@@ -14,6 +14,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { useLocation } from 'react-router-dom';
 import { useLang } from '../../i18n';
+import { toast } from 'sonner';
 import {
   Anchor,
   ArrowClockwise,
@@ -353,6 +354,35 @@ export default function VesselFinderSessionPage() {
     try {
       await axios.post(`${API_URL}/api/vesselfinder/session/reset-counters`);
       await loadStatus();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ── End-to-end test: create a clearly-labelled TEST shipment with a real
+  // public vessel + tracking ON, so the flow can be verified once an
+  // extension is online. Removable with one click.
+  const createTestTracking = async () => {
+    setBusy(true);
+    try {
+      const r = await axios.post(`${API_URL}/api/vesselfinder/session/test-tracking`);
+      toast.success(t('vfTestTrackingCreated'), { description: r.data?.shipmentId });
+      await loadStatus();
+    } catch (e) {
+      toast.error(t('vfTestTrackingFail'), { description: e?.response?.data?.detail || String(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeTestTracking = async () => {
+    setBusy(true);
+    try {
+      const r = await axios.delete(`${API_URL}/api/vesselfinder/session/test-tracking`);
+      toast.success(t('vfTestTrackingRemoved'), { description: `${r.data?.removed ?? 0}` });
+      await loadStatus();
+    } catch (e) {
+      toast.error(t('vfTestTrackingFail'), { description: e?.response?.data?.detail || String(e) });
     } finally {
       setBusy(false);
     }
@@ -954,6 +984,23 @@ export default function VesselFinderSessionPage() {
               data-testid="vf-reset-counters-button"
             >
               <ArrowClockwise size={14} /> <span>{t('vfBtnResetCounters')}</span>
+            </button>
+            <button
+              onClick={createTestTracking}
+              disabled={busy}
+              className="inline-flex items-center gap-2 h-10 px-3.5 sm:px-4 shrink-0 rounded-xl border border-violet-200 bg-violet-50 text-[13px] sm:text-sm font-medium text-violet-700 hover:bg-violet-100 transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-200"
+              title={t('vfBtnCreateTestTitle')}
+              data-testid="vf-create-test-tracking-button"
+            >
+              <Target size={14} weight="duotone" /> <span className="whitespace-nowrap">{t('vfBtnCreateTest')}</span>
+            </button>
+            <button
+              onClick={removeTestTracking}
+              disabled={busy}
+              className="inline-flex items-center gap-2 h-10 px-3.5 sm:px-4 shrink-0 rounded-xl border border-[#E4E4E7] bg-white text-[13px] sm:text-sm font-medium text-[#71717A] hover:bg-zinc-50 transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-4 focus-visible:ring-black/10"
+              data-testid="vf-remove-test-tracking-button"
+            >
+              <ArrowClockwise size={14} /> <span className="whitespace-nowrap">{t('vfBtnRemoveTest')}</span>
             </button>
             <button
               onClick={clearSession}

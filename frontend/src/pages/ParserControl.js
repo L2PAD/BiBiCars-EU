@@ -46,6 +46,7 @@ import {
   CaretRight,
   Siren,
   Download,
+  Car,
   Copy,
   Check,
   Play,
@@ -476,6 +477,41 @@ const ExtensionStatusCard = ({ extension, canManage, onOpenExtensionTab }) => {
 };
 
 // ── 3. Source row ───────────────────────────────────────
+const CatalogStrip = ({ catalog, performance, t }) => {
+  const total = catalog?.total ?? 0;
+  const bySrc = catalog?.by_source || {};
+  const totalCalls = performance?.total_calls ?? 0;
+  const fmt = (n) => (n ?? 0).toLocaleString();
+  return (
+    <div className="bg-white rounded-2xl border border-[#E4E4E7] p-4 sm:p-5" data-testid="catalog-strip">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Real catalogue size (vindata) — the honest "how many cars" number */}
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3" data-testid="catalog-total">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+            <Car size={13} weight="duotone" /> {t('pc_catalog_vehicles')}
+          </div>
+          <div className="text-2xl font-bold text-emerald-800 tabular-nums mt-1">{fmt(total)}</div>
+          <div className="text-[10.5px] text-emerald-600 mt-0.5">{t('pc_catalog_real_vindata')}</div>
+        </div>
+        <div className="rounded-xl border border-[#E4E4E7] bg-[#FAFAFA] px-4 py-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-[#71717A]">Bitmotors + misc</div>
+          <div className="text-xl font-bold text-[#18181B] tabular-nums mt-1">{fmt(bySrc.vin_data)}</div>
+        </div>
+        <div className="rounded-xl border border-[#E4E4E7] bg-[#FAFAFA] px-4 py-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-[#71717A]">Lemon · WestMotors</div>
+          <div className="text-xl font-bold text-[#18181B] tabular-nums mt-1">{fmt((bySrc.lemon || 0) + (bySrc.westmotors || 0))}</div>
+        </div>
+        {/* Telemetry — clearly labelled as lookups, NOT cars */}
+        <div className="rounded-xl border border-[#E4E4E7] bg-[#FAFAFA] px-4 py-3" data-testid="catalog-calls">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-[#71717A]">{t('adm_total_calls')}</div>
+          <div className="text-xl font-bold text-[#18181B] tabular-nums mt-1">{fmt(totalCalls)}</div>
+          <div className="text-[10.5px] text-[#A1A1AA] mt-0.5">{t('pc_catalog_lookups_note')}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const SourceRow = ({ row }) => {
   const { t } = useLang();
   const preset = STATUS_PRESET[row.status] || STATUS_PRESET.idle;
@@ -2485,6 +2521,7 @@ const ParserControl = () => {
             system={overview?.system}
             alerts={overview?.alerts}
           />
+          <CatalogStrip catalog={overview?.catalog} performance={overview?.performance} t={t} />
           <ExtensionStatusCard
             extension={overview?.extension}
             canManage={isMasterAdmin}

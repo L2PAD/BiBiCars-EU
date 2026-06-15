@@ -22368,8 +22368,14 @@ async def download_extension():
     )
 
 @fastapi_app.get("/api/extension/info")
-async def extension_info():
-    """Get extension info."""
+async def extension_info(authorization: Optional[str] = Header(default=None)):
+    """Get extension info.
+
+    SECURITY: the HMAC shared secret is sensitive — it lets a holder sign
+    valid extension requests. It is now returned ONLY to authenticated staff
+    (admin/manager). Anonymous callers (e.g. the extension's reachability
+    probe) get a masked value and `hmac_enabled` only.
+    """
     ext_dir = "/app/backend/chrome_extension"
     file_exists = os_module.path.isdir(ext_dir)
     file_count = 0
@@ -22388,6 +22394,17 @@ async def extension_info():
                     pass
 
     hmac_secret = os_module.environ.get("EXT_SHARED_SECRET", "").strip()
+
+    # Only reveal the secret to authenticated staff.
+    is_staff = False
+    if authorization and authorization.lower().startswith("bearer "):
+        try:
+            _payload = verify_token(authorization.split(" ", 1)[1].strip())
+            if _payload and _payload.get("role") in ("admin", "master_admin", "manager", "owner"):
+                is_staff = True
+        except Exception:
+            is_staff = False
+    masked = (f"{hmac_secret[:4]}…{hmac_secret[-4:]}" if len(hmac_secret) >= 8 else "••••") if hmac_secret else ""
 
     return {
         "name": "BIBI Cars Parser",
@@ -22409,7 +22426,9 @@ async def extension_info():
         "file_exists": file_exists,
         "file_size": file_size,
         "file_count": file_count,
-        "hmac_secret": hmac_secret,
+        # Secret only for staff; everyone else gets a masked hint + the flag.
+        "hmac_secret": hmac_secret if is_staff else None,
+        "hmac_secret_masked": masked,
         "hmac_enabled": bool(hmac_secret),
         "supported_sites": [
             {"name": "poctra.com", "status": "active"},
@@ -22931,6 +22950,28 @@ async def control_overview():
     else:  # red
         reason = "All primary sources offline — VIN lookups cannot be served"
 
+    # ── Real catalogue size (vindata) — distinct from telemetry "total_calls"
+    catalog_by_source: Dict[str, int] = {}
+    catalog_total = 0
+    try:
+        async def _safe_count(coll, flt=None):
+            try:
+                return int(await db[coll].count_documents(flt or {}))
+            except Exception:
+                return 0
+        # Main pool (bitmotors + misc live in vin_data, tagged by `source`)
+        vin_data_total = await _safe_count("vin_data")
+        lemon_total = await _safe_count("vin_data_lemon")
+        west_total = await _safe_count("vin_data_westmotors")
+        catalog_by_source = {
+            "vin_data": vin_data_total,
+            "lemon": lemon_total,
+            "westmotors": west_total,
+        }
+        catalog_total = vin_data_total + lemon_total + west_total
+    except Exception as e:
+        logger.warning(f"[control] catalog count failed: {e}")
+
     return {
         "system": {
             "status": system_status,
@@ -22938,6 +22979,10 @@ async def control_overview():
             "reason": reason,
             "primary_up": [r["key"] for r in primary_serving],
             "primary_down": [r["key"] for r in primary_down],
+        },
+        "catalog": {
+            "total": catalog_total,
+            "by_source": catalog_by_source,
         },
         "extension": {
             "online": ext_clients_online,
@@ -26687,6 +26732,45 @@ async def vf_vessels_search(bbox: str = "", query: str = ""):
         "rich": {"results": []},
         "message": "Live VesselFinder search is disabled (extension-only model). Showing CRM matches only.",
     }
+
+
+@fastapi_app.post("/api/vesselfinder/session/test-tracking", dependencies=[Depends(require_manager_or_admin)])
+async def vf_create_test_tracking():
+    """Create a clearly-labelled TEST shipment with a real public vessel and
+    enable tracking — so the admin can verify the end-to-end flow:
+    (extension online) → /jobs returns this job → extension fetches VF →
+    /jobs/result → telemetry lights up. Remove it anytime with DELETE."""
+    now = datetime.now(timezone.utc)
+    await db.shipments.delete_many({"isTestTracking": True})  # idempotent
+    sid = f"TEST-TRACK-{int(now.timestamp())}"
+    doc = {
+        "id": sid,
+        "isTestTracking": True,
+        "trackingActive": True,
+        "status": "in_transit",
+        "containerNumber": "TEST0000000",
+        # Real public vessel so VF actually returns a position when fetched.
+        "vessel": {"name": "EVER GIVEN", "mmsi": "353136000", "imo": "9811000",
+                   "boundAt": now.isoformat()},
+        "origin": "Newark, US",
+        "destination": "Varna, BG",
+        "createdAt": now.isoformat(),
+        "created_at": now,
+    }
+    await db.shipments.insert_one(doc)
+    return {
+        "ok": True,
+        "shipmentId": sid,
+        "vessel": doc["vessel"],
+        "message": "Test tracking created. When the extension is online it will fetch this vessel within ~2 min.",
+    }
+
+
+@fastapi_app.delete("/api/vesselfinder/session/test-tracking", dependencies=[Depends(require_manager_or_admin)])
+async def vf_delete_test_tracking():
+    """Remove all TEST tracking shipments created for end-to-end checks."""
+    r = await db.shipments.delete_many({"isTestTracking": True})
+    return {"ok": True, "removed": r.deleted_count}
 
 
 

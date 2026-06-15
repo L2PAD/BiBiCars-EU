@@ -1,42 +1,14 @@
 [
   {
-    "content": "Overview/Resolver health: честные статусы (idle/down вместо фейкового OK)",
-    "status": "completed"
+    "content": "(а) Overview: честный показатель 'Авто в каталоге' (vindata) отдельно от Total calls",
+    "status": "in_progress"
   },
   {
-    "content": "Overview Performance: честный агрегат (IDLE)",
-    "status": "completed"
-  },
-  {
-    "content": "Карточки: один статус вместо двух",
-    "status": "completed"
-  },
-  {
-    "content": "Карточки: логика Run/Stop",
-    "status": "completed"
-  },
-  {
-    "content": "Install engine timeout: lightweight probe",
-    "status": "completed"
-  },
-  {
-    "content": "Показать ВСЕ 9 парсеров (poctra, carsfromwest, auctionhistory, salvagebid)",
-    "status": "completed"
-  },
-  {
-    "content": "Терминология: 'Ключ доступу до CRM (HMAC)' в админке = расширение",
-    "status": "completed"
-  },
-  {
-    "content": "Debug «не удалось достучаться»: раскорнено = Cloudflare блокирует (бэкенд OK). + открыты ext/health,clients",
-    "status": "completed"
-  },
-  {
-    "content": "Extension popup: честный статус 'доступний' (polish, опционально)",
+    "content": "(б) Админ-кнопка 'привязать судно к грузу + включить трекинг' для теста сквозного потока",
     "status": "pending"
   },
   {
-    "content": "Реальный учёт: inDB/lookups по источнику (базово сделано)",
-    "status": "completed"
+    "content": "(в) Закрыть утечку HMAC-секрета в /api/extension/info (отдавать только админу)",
+    "status": "pending"
   }
 ]
