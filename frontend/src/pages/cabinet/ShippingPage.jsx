@@ -45,20 +45,20 @@ const STATUS_CONFIG = {
 // Plain-language explanation of each delivery status — shown on hover so the
 // customer always understands where their vehicle is.
 const DELIVERY_DESC = {
-  pending: { en: 'Awaiting pickup — the carrier has not collected the vehicle yet.', ru: 'Ожидает отправки — перевозчик ещё не забрал автомобиль.', bg: 'Очаква изпращане — превозвачът още не е взел автомобила.', uk: 'Очікує відправлення — перевізник ще не забрав автомобіль.' },
-  picked_up: { en: 'Picked up — the vehicle has been collected and is heading to the port.', ru: 'Забрано — автомобиль получен и направляется в порт.', bg: 'Взет — автомобилът е поет и пътува към пристанището.', uk: 'Забрано — автомобіль отримано й прямує до порту.' },
-  in_transit: { en: 'In transit — the vehicle is on the move (road or sea).', ru: 'В пути — автомобиль перемещается (по суше или морю).', bg: 'В транзит — автомобилът се движи (по суша или море).', uk: 'В дорозі — автомобіль рухається (суходолом або морем).' },
-  at_port: { en: 'At port — the vehicle reached a port and awaits the next leg.', ru: 'В порту — автомобиль прибыл в порт и ожидает следующего этапа.', bg: 'На пристанище — автомобилът е на пристанище и чака следващия етап.', uk: 'У порту — автомобіль прибув у порт і очікує наступного етапу.' },
-  customs_clearance: { en: 'Customs — the vehicle is going through customs clearance.', ru: 'Таможня — автомобиль проходит таможенное оформление.', bg: 'Митница — автомобилът минава митническо оформяне.', uk: 'Митниця — автомобіль проходить митне оформлення.' },
-  delivered: { en: 'Delivered — the vehicle has arrived and been handed over.', ru: 'Доставлено — автомобиль прибыл и передан вам.', bg: 'Доставен — автомобилът пристигна и е предаден.', uk: 'Доставлено — автомобіль прибув і переданий вам.' },
-  cancelled: { en: 'Cancelled — this shipment was cancelled.', ru: 'Отменено — эта отправка отменена.', bg: 'Отказан — тази пратка е отменена.', uk: 'Скасовано — це відправлення скасовано.' },
+  pending: { en: 'Awaiting pickup — the carrier has not collected the vehicle yet.', bg: 'Очаква изпращане — превозвачът още не е взел автомобила.', uk: 'Очікує відправлення — перевізник ще не забрав автомобіль.' },
+  picked_up: { en: 'Picked up — the vehicle has been collected and is heading to the port.', bg: 'Взет — автомобилът е поет и пътува към пристанището.', uk: 'Забрано — автомобіль отримано й прямує до порту.' },
+  in_transit: { en: 'In transit — the vehicle is on the move (road or sea).', bg: 'В транзит — автомобилът се движи (по суша или море).', uk: 'В дорозі — автомобіль рухається (суходолом або морем).' },
+  at_port: { en: 'At port — the vehicle reached a port and awaits the next leg.', bg: 'На пристанище — автомобилът е на пристанище и чака следващия етап.', uk: 'У порту — автомобіль прибув у порт і очікує наступного етапу.' },
+  customs_clearance: { en: 'Customs — the vehicle is going through customs clearance.', bg: 'Митница — автомобилът минава митническо оформяне.', uk: 'Митниця — автомобіль проходить митне оформлення.' },
+  delivered: { en: 'Delivered — the vehicle has arrived and been handed over.', bg: 'Доставен — автомобилът пристигна и е предаден.', uk: 'Доставлено — автомобіль прибув і переданий вам.' },
+  cancelled: { en: 'Cancelled — this shipment was cancelled.', bg: 'Отказан — тази пратка е отменена.', uk: 'Скасовано — це відправлення скасовано.' },
 };
 
 // Live-tracking signal quality explanation.
 const LIVE_DESC = {
-  Live: { en: 'Live — real GPS coordinates updated within the last 10 minutes.', ru: 'В реальном времени — реальные GPS-координаты обновлены за последние 10 минут.', bg: 'На живо — реални GPS координати, обновени през последните 10 минути.', uk: 'У реальному часі — реальні GPS-координати оновлено за останні 10 хвилин.' },
-  Estimated: { en: 'Estimated — position is approximated (interpolated or older than 10 minutes).', ru: 'Оценочно — положение приблизительное (интерполяция или данные старше 10 минут).', bg: 'Прогнозно — позицията е приблизителна (интерполация или по-стара от 10 минути).', uk: 'Орієнтовно — позиція приблизна (інтерполяція або дані старші за 10 хвилин).' },
-  'No data': { en: 'No data — no live position is available for this shipment yet.', ru: 'Нет данных — для этой отправки пока нет данных о местоположении.', bg: 'Няма данни — все още няма данни за позицията на тази пратка.', uk: 'Немає даних — для цього відправлення поки немає даних про місцезнаходження.' },
+  Live: { en: 'Live — real GPS coordinates updated within the last 10 minutes.', bg: 'На живо — реални GPS координати, обновени през последните 10 минути.', uk: 'У реальному часі — реальні GPS-координати оновлено за останні 10 хвилин.' },
+  Estimated: { en: 'Estimated — position is approximated (interpolated or older than 10 minutes).', bg: 'Прогнозно — позицията е приблизителна (интерполация или по-стара от 10 минути).', uk: 'Орієнтовно — позиція приблизна (інтерполяція або дані старші за 10 хвилин).' },
+  'No data': { en: 'No data — no live position is available for this shipment yet.', bg: 'Няма данни — все още няма данни за позицията на тази пратка.', uk: 'Немає даних — для цього відправлення поки немає даних про місцезнаходження.' },
 };
 const shipPick = (m, l) => (m && (m[l] || m.en)) || '';
 

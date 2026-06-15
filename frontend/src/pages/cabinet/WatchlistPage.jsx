@@ -20,8 +20,8 @@ const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 
 // Plain-language explanation of the two watchlist states — shown on hover.
 const WATCH_DESC = {
-  pending: { en: 'Pending — we are watching this VIN. You will be notified the moment it appears at auction.', ru: 'Ожидание — мы отслеживаем этот VIN. Вы получите уведомление, как только он появится на аукционе.', bg: 'Изчакване — следим този VIN. Ще получите известие веднага щом се появи на търг.', uk: 'Очікування — ми відстежуємо цей VIN. Ви отримаєте сповіщення щойно він з’явиться на аукціоні.' },
-  matched: { en: 'Matched — this VIN has been found! Open it to see the details.', ru: 'Найдено — этот VIN найден! Откройте, чтобы посмотреть детали.', bg: 'Намерено — този VIN е намерен! Отворете, за да видите детайлите.', uk: 'Знайдено — цей VIN знайдено! Відкрийте, щоб побачити деталі.' },
+  pending: { en: 'Pending — we are watching this VIN. You will be notified the moment it appears at auction.', bg: 'Изчакване — следим този VIN. Ще получите известие веднага щом се появи на търг.', uk: 'Очікування — ми відстежуємо цей VIN. Ви отримаєте сповіщення щойно він з’явиться на аукціоні.' },
+  matched: { en: 'Matched — this VIN has been found! Open it to see the details.', bg: 'Намерено — този VIN е намерен! Отворете, за да видите детайлите.', uk: 'Знайдено — цей VIN знайдено! Відкрийте, щоб побачити деталі.' },
 };
 const watchPick = (m, l) => (m && (m[l] || m.en)) || '';
 

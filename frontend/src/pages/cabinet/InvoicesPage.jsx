@@ -26,11 +26,11 @@ const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 
 // Plain-language explanation of each invoice status — shown on hover.
 const INVOICE_DESC = {
-  pending: { en: 'Awaiting payment — please pay to continue your order.', ru: 'Ожидает оплаты — пожалуйста, оплатите, чтобы продолжить заказ.', bg: 'Очаква плащане — моля, платете, за да продължите поръчката.', uk: 'Очікує оплати — будь ласка, сплатіть, щоб продовжити замовлення.' },
-  paid: { en: 'Paid — this invoice has been settled. Thank you!', ru: 'Оплачено — счёт оплачен. Спасибо!', bg: 'Платено — фактурата е платена. Благодарим!', uk: 'Сплачено — рахунок оплачено. Дякуємо!' },
-  cancelled: { en: 'Cancelled — this invoice is no longer due.', ru: 'Отменено — счёт больше не требует оплаты.', bg: 'Отказана — фактурата вече не дължи плащане.', uk: 'Скасовано — рахунок більше не потребує оплати.' },
-  expired: { en: 'Expired — the payment window closed. Contact us to reissue.', ru: 'Просрочено — срок оплаты истёк. Свяжитесь с нами для перевыпуска.', bg: 'Изтекла — срокът за плащане изтече. Свържете се с нас за преиздаване.', uk: 'Прострочено — термін оплати минув. Зв’яжіться з нами для перевипуску.' },
-  refunded: { en: 'Refunded — the amount has been returned to you.', ru: 'Возвращено — сумма возвращена вам.', bg: 'Възстановена — сумата е върната.', uk: 'Повернено — суму повернено вам.' },
+  pending: { en: 'Awaiting payment — please pay to continue your order.', bg: 'Очаква плащане — моля, платете, за да продължите поръчката.', uk: 'Очікує оплати — будь ласка, сплатіть, щоб продовжити замовлення.' },
+  paid: { en: 'Paid — this invoice has been settled. Thank you!', bg: 'Платено — фактурата е платена. Благодарим!', uk: 'Сплачено — рахунок оплачено. Дякуємо!' },
+  cancelled: { en: 'Cancelled — this invoice is no longer due.', bg: 'Отказана — фактурата вече не дължи плащане.', uk: 'Скасовано — рахунок більше не потребує оплати.' },
+  expired: { en: 'Expired — the payment window closed. Contact us to reissue.', bg: 'Изтекла — срокът за плащане изтече. Свържете се с нас за преиздаване.', uk: 'Прострочено — термін оплати минув. Зв’яжіться з нами для перевипуску.' },
+  refunded: { en: 'Refunded — the amount has been returned to you.', bg: 'Възстановена — сумата е върната.', uk: 'Повернено — суму повернено вам.' },
 };
 const invPick = (m, l) => (m && (m[l] || m.en)) || '';
 

@@ -113,28 +113,25 @@ const STATUS_TO_STEP = {
 // so the customer always understands what each colour/state means.
 const PROC_STATE = {
   done: {
-    label: { en: 'Completed', ru: 'Завершён', bg: 'Завършен', uk: 'Завершено' },
+    label: { en: 'Completed', bg: 'Завършен', uk: 'Завершено' },
     desc: {
       en: 'This step is complete.',
-      ru: 'Этот этап завершён.',
       bg: 'Този етап е завършен.',
       uk: 'Цей етап завершено.',
     },
   },
   current: {
-    label: { en: 'In progress', ru: 'В процессе', bg: 'В процес', uk: 'В роботі' },
+    label: { en: 'In progress', bg: 'В процес', uk: 'В роботі' },
     desc: {
       en: 'We are working on this step right now.',
-      ru: 'Сейчас мы работаем над этим этапом.',
       bg: 'В момента работим по този етап.',
       uk: 'Зараз ми працюємо над цим етапом.',
     },
   },
   upcoming: {
-    label: { en: 'Upcoming', ru: 'Ожидается', bg: 'Очаква', uk: 'Очікує' },
+    label: { en: 'Upcoming', bg: 'Очаква', uk: 'Очікує' },
     desc: {
       en: 'This step is still ahead — not started yet.',
-      ru: 'Этот этап ещё впереди — пока не начат.',
       bg: 'Този етап предстои — все още не е започнат.',
       uk: 'Цей етап ще попереду — поки не розпочато.',
     },

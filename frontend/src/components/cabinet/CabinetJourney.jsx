@@ -21,12 +21,12 @@ const EMERALD = '#10B981';
 const TRACK = '#2A2A30';
 
 const STATUS_LABELS = {
-  done: { en: 'Done', ru: 'Готово', bg: 'Готово', uk: 'Готово' },
-  completed: { en: 'Done', ru: 'Готово', bg: 'Готово', uk: 'Готово' },
-  in_progress: { en: 'In progress', ru: 'В процессе', bg: 'В процес', uk: 'В роботі' },
-  pending: { en: 'Upcoming', ru: 'Ожидается', bg: 'Очаква', uk: 'Очікує' },
-  blocked: { en: 'Blocked', ru: 'Заблокировано', bg: 'Блокирано', uk: 'Заблоковано' },
-  skipped: { en: 'Skipped', ru: 'Пропущено', bg: 'Пропуснат', uk: 'Пропуснато' },
+  done: { en: 'Done', bg: 'Готово', uk: 'Готово' },
+  completed: { en: 'Done', bg: 'Готово', uk: 'Готово' },
+  in_progress: { en: 'In progress', bg: 'В процес', uk: 'В роботі' },
+  pending: { en: 'Upcoming', bg: 'Очаква', uk: 'Очікує' },
+  blocked: { en: 'Blocked', bg: 'Блокирано', uk: 'Заблоковано' },
+  skipped: { en: 'Skipped', bg: 'Пропуснат', uk: 'Пропуснато' },
 };
 
 // Plain-language explanation for each stage status — shown on hover so the
@@ -34,37 +34,31 @@ const STATUS_LABELS = {
 const STATUS_DESC = {
   done: {
     en: 'This stage is complete.',
-    ru: 'Этот этап завершён.',
     bg: 'Този етап е завършен.',
     uk: 'Цей етап завершено.',
   },
   completed: {
     en: 'This stage is complete.',
-    ru: 'Этот этап завершён.',
     bg: 'Този етап е завършен.',
     uk: 'Цей етап завершено.',
   },
   in_progress: {
     en: 'We are working on this stage right now.',
-    ru: 'Сейчас мы работаем над этим этапом.',
     bg: 'В момента работим по този етап.',
     uk: 'Зараз ми працюємо над цим етапом.',
   },
   pending: {
     en: 'This stage is still ahead — not started yet.',
-    ru: 'Этот этап ещё впереди — пока не начат.',
     bg: 'Този етап предстои — все още не е започнат.',
     uk: 'Цей етап ще попереду — поки не розпочато.',
   },
   blocked: {
     en: 'This stage is on hold — our team is resolving something and will keep you posted.',
-    ru: 'Этап приостановлен — мы решаем вопрос и сообщим вам об обновлениях.',
     bg: 'Етапът е спрян — екипът ни решава въпрос и ще ви уведоми.',
     uk: 'Етап призупинено — наша команда вирішує питання й повідомить вас.',
   },
   skipped: {
     en: 'This stage was skipped — it is not needed for your order.',
-    ru: 'Этот этап пропущен — он не требуется для вашего заказа.',
     bg: 'Този етап е пропуснат — не е необходим за вашата поръчка.',
     uk: 'Цей етап пропущено — він не потрібен для вашого замовлення.',
   },
@@ -73,7 +67,7 @@ const STATUS_DESC = {
 const fmtDate = (iso, lang) => {
   if (!iso) return '';
   try {
-    const loc = lang === 'ru' ? 'ru-RU' : lang === 'bg' ? 'bg-BG' : lang === 'uk' ? 'uk-UA' : 'en-US';
+    const loc = lang === 'bg' ? 'bg-BG' : lang === 'uk' ? 'uk-UA' : 'en-US';
     return new Date(iso).toLocaleDateString(loc, { day: '2-digit', month: 'short', year: 'numeric' });
   } catch { return ''; }
 };
@@ -190,7 +184,7 @@ const StageRow = ({ stage, lang, isLast, index }) => {
             <p className="text-sm text-zinc-100 leading-relaxed">{desc}</p>
             {stage.eta && (
               <p className="text-xs text-zinc-400 mt-2">
-                {lang === 'ru' ? 'Ожидаемый срок' : lang === 'bg' ? 'Очакван срок' : lang === 'uk' ? 'Очікуваний термін' : 'Expected'}:{' '}
+                {lang === 'bg' ? 'Очакван срок' : lang === 'uk' ? 'Очікуваний термін' : 'Expected'}:{' '}
                 <span className="font-semibold text-[#FEAE00]">{fmtDate(stage.eta, lang) || stage.eta}</span>
               </p>
             )}
@@ -202,14 +196,13 @@ const StageRow = ({ stage, lang, isLast, index }) => {
 };
 
 const L = {
-  completed: { en: 'completed', ru: 'завершено', bg: 'завършено', uk: 'завершено' },
+  completed: { en: 'completed', bg: 'завършено', uk: 'завершено' },
   done_banner: {
     en: 'Congratulations — your vehicle has been handed over. Enjoy the road!',
-    ru: 'Поздравляем — ваш автомобиль передан вам. Приятной дороги!',
     bg: 'Честито — вашият автомобил вече е във ваши ръце. Приятно каране!',
     uk: 'Вітаємо — ваш автомобіль передано вам. Гарної дороги!',
   },
-  vehicle: { en: 'My vehicle', ru: 'Мой автомобиль', bg: 'Моят автомобил', uk: 'Мій автомобіль' },
+  vehicle: { en: 'My vehicle', bg: 'Моят автомобил', uk: 'Мій автомобіль' },
 };
 const pick = (m, lang) => m[lang] || m.en;
 
