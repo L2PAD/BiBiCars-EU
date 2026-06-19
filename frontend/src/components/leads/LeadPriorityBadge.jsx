@@ -1,23 +1,12 @@
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { useLang } from '../../i18n';
 
-/**
- * Wave 10A — Priority bucket badge (A/B/C/D)
- *  A — Hot   (red)
- *  B — Active (orange)
- *  C — Watch (blue)
- *  D — Cold  (grey)
- *
- * Accepts either:
- *   <LeadPriorityBadge priority={{ bucket, label, score, reasons }} />
- *  OR
- *   <LeadPriorityBadge bucket="A" score={87} reasons={['...']} />
- */
 export const PRIORITY_CFG = {
-  A: { label: 'Hot',    cls: 'bg-red-50 text-red-700 border-red-200',         dot: '#DC2626' },
-  B: { label: 'Active', cls: 'bg-amber-50 text-amber-700 border-amber-200',   dot: '#F59E0B' },
-  C: { label: 'Watch',  cls: 'bg-sky-50 text-sky-700 border-sky-200',         dot: '#0EA5E9' },
-  D: { label: 'Cold',   cls: 'bg-zinc-100 text-zinc-700 border-zinc-200',     dot: '#71717A' },
+  A: { key: 'lp_A', cls: 'bg-red-50 text-red-700 border-red-200',         dot: '#DC2626' },
+  B: { key: 'lp_B', cls: 'bg-amber-50 text-amber-700 border-amber-200',   dot: '#F59E0B' },
+  C: { key: 'lp_C', cls: 'bg-sky-50 text-sky-700 border-sky-200',         dot: '#0EA5E9' },
+  D: { key: 'lp_D', cls: 'bg-zinc-100 text-zinc-700 border-zinc-200',     dot: '#71717A' },
 };
 
 const SIZE = {
@@ -27,7 +16,8 @@ const SIZE = {
   lg: { px: 'px-2.5 py-1',   text: 'text-xs',     gap: 'gap-1.5' },
 };
 
-const Inner = ({ bucket, label, score, size = 'sm', showLabel = true, testId }) => {
+const Inner = ({ bucket, score, size = 'sm', showLabel = true, testId }) => {
+  const { t } = useLang();
   const cfg = PRIORITY_CFG[bucket] || PRIORITY_CFG.D;
   const s   = SIZE[size] || SIZE.sm;
   return (
@@ -36,7 +26,7 @@ const Inner = ({ bucket, label, score, size = 'sm', showLabel = true, testId }) 
       data-testid={testId || `lead-priority-${bucket}`}
     >
       <span className="font-extrabold tabular-nums">{bucket}</span>
-      {showLabel ? <span>{label || cfg.label}</span> : null}
+      {showLabel ? <span>{t(cfg.key)}</span> : null}
       {typeof score === 'number' && size !== 'xs' ? (
         <span className="opacity-70 tabular-nums">· {score}</span>
       ) : null}
@@ -45,20 +35,21 @@ const Inner = ({ bucket, label, score, size = 'sm', showLabel = true, testId }) 
 };
 
 const LeadPriorityBadge = ({ priority, bucket, score, reasons, label, size, showLabel = true, testId }) => {
+  const { t } = useLang();
   const p = priority || { bucket, score, reasons, label };
   if (!p?.bucket) return null;
   const rs = (p.reasons || []).slice(0, 4);
   if (!rs.length) {
-    return <Inner bucket={p.bucket} label={p.label} score={p.score} size={size} showLabel={showLabel} testId={testId} />;
+    return <Inner bucket={p.bucket} score={p.score} size={size} showLabel={showLabel} testId={testId} />;
   }
   return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span><Inner bucket={p.bucket} label={p.label} score={p.score} size={size} showLabel={showLabel} testId={testId} /></span>
+          <span><Inner bucket={p.bucket} score={p.score} size={size} showLabel={showLabel} testId={testId} /></span>
         </TooltipTrigger>
         <TooltipContent side="bottom" align="start" className="max-w-xs bg-white border border-[#E4E4E7] rounded-lg shadow-lg p-2.5">
-          <div className="text-[11px] font-semibold text-[#52525B] mb-1">Why this priority</div>
+          <div className="text-[11px] font-semibold text-[#52525B] mb-1">{t('lp_whyPriority')}</div>
           <ul className="text-[12px] text-[#18181B] space-y-0.5">
             {rs.map((r, i) => (<li key={i}>· {r}</li>))}
           </ul>

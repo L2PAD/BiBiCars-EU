@@ -46,6 +46,7 @@ const Customers = () => {
     firstName: '', lastName: '', email: '', phone: '', phoneCountry: 'BG',
     company: '', type: 'individual', vehicleInterest: '', notes: '',
     country: '',
+    sendInvite: true,
     wishes: { budget_min: '', budget_max: '', currency: 'EUR', timeline_months: '', note: '' },
   });
   const [formErrors, setFormErrors] = useState({});
@@ -133,8 +134,22 @@ const Customers = () => {
         await axios.put(`${API_URL}/api/customers/${editingCustomer.id}`, payload);
         toast.success(t('customerUpdated'));
       } else {
-        await axios.post(`${API_URL}/api/customers`, payload);
+        const { data: created } = await axios.post(`${API_URL}/api/customers`, {
+          ...payload,
+          sendInvite: !!formData.sendInvite,
+        });
         toast.success(t('customerCreated'));
+        const inv = created?.invite;
+        if (inv?.invite_link) {
+          if (inv.emailMode === 'resend') {
+            toast.success('Invitation email sent to the client');
+          } else {
+            try { navigator.clipboard.writeText(inv.invite_link); } catch {}
+            toast.message('Invite link copied (dry-run — no email provider key yet)', {
+              description: inv.invite_link,
+            });
+          }
+        }
       }
       setShowModal(false);
       resetForm();
@@ -185,6 +200,7 @@ const Customers = () => {
       firstName: '', lastName: '', email: '', phone: '', phoneCountry: 'BG',
       company: '', type: 'individual', vehicleInterest: '', notes: '',
       country: '',
+      sendInvite: true,
       wishes: { budget_min: '', budget_max: '', currency: 'EUR', timeline_months: '', note: '' },
     });
     setFormErrors({});
@@ -798,6 +814,33 @@ const Customers = () => {
                 data-testid="customer-notes-input"
               />
             </div>
+
+            {!editingCustomer && (
+              <label
+                className={`flex items-start gap-3 rounded-xl border px-4 py-3 cursor-pointer transition ${
+                  formData.sendInvite && (formData.email || '').trim()
+                    ? 'border-[#FEAE00] bg-[#FEAE00]/5'
+                    : 'border-[#E4E4E7]'
+                } ${!(formData.email || '').trim() ? 'opacity-60' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={formData.sendInvite}
+                  disabled={!(formData.email || '').trim()}
+                  onChange={(e) => setFormData({ ...formData, sendInvite: e.target.checked })}
+                  className="mt-1 accent-[#FEAE00] w-4 h-4"
+                  data-testid="customer-send-invite-checkbox"
+                />
+                <span>
+                  <span className="block text-[13px] font-semibold text-[#18181B]">
+                    Invite client to the cabinet
+                  </span>
+                  <span className="block text-[12px] text-[#71717A] mt-0.5">
+                    Email a 30-day link so the client sets their password and signs in.
+                  </span>
+                </span>
+              </label>
+            )}
 
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1" data-testid="customer-cancel-btn">{t('cancel')}</button>

@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './dialog';
 import { ArrowsClockwise, User, CheckCircle, Warning, MagnifyingGlass } from '@phosphor-icons/react';
 import { API_URL } from '../../App';
+import { useLang } from '../../i18n';
 
 const ENTITY_LABEL = {
   lead:     { en: 'leads',     uk: 'лідів',    bg: 'лийдове'  },
@@ -48,6 +49,7 @@ const ReassignDialog = ({
   onSuccess = () => {},
 }) => {
   const [managers, setManagers] = useState([]);
+  const { t } = useLang();
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedManagerId, setSelectedManagerId] = useState(null);
@@ -150,7 +152,7 @@ const ReassignDialog = ({
           <DialogTitle className="text-lg sm:text-xl font-bold text-[#18181B] flex items-center gap-2"
             style={{ fontFamily: 'Mazzard, Mazzard H, Mazzard M, system-ui, sans-serif' }}>
             <ArrowsClockwise size={20} weight="duotone" className="text-[#4F46E5]" />
-            Reassign {ids.length > 1 ? `${ids.length} ${plural(entity, ids.length)}` : entity}
+            {t('ra_title')}{ids.length > 1 ? ` (${ids.length})` : ''}
           </DialogTitle>
         </DialogHeader>
 
@@ -162,7 +164,7 @@ const ReassignDialog = ({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search manager by name or email…"
+              placeholder={t('ra_search')}
               className="w-full h-10 pl-9 pr-3 rounded-xl border border-[#E4E4E7] bg-white text-sm focus:outline-none focus:border-[#4F46E5]"
               data-testid="reassign-search"
             />
@@ -175,13 +177,13 @@ const ReassignDialog = ({
             <div className="text-center py-8 text-[#71717A]">
               <div className="inline-flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-[#18181B] border-t-transparent rounded-full animate-spin" />
-                Loading managers…
+                {t('ra_loading')}
               </div>
             </div>
           ) : filteredManagers.length === 0 ? (
             <div className="text-center py-8 text-[#71717A] text-sm">
               <Warning size={20} className="mx-auto mb-2 text-[#D97706]" weight="duotone" />
-              No managers found
+              {t('ra_none')}
             </div>
           ) : (
             filteredManagers.map((m) => {
@@ -218,7 +220,7 @@ const ReassignDialog = ({
                       <span>C:<b className="ml-0.5 text-[#18181B]">{m.activeCustomers ?? 0}</b></span>
                       <span>D:<b className="ml-0.5 text-[#18181B]">{m.activeDeals ?? 0}</b></span>
                       <span>T:<b className="ml-0.5 text-[#18181B]">{m.activeTasks ?? 0}</b></span>
-                      <span className={`ml-auto font-bold ${loadColor(m.loadScore)}`}>load {m.loadScore}</span>
+                      <span className={`ml-auto font-bold ${loadColor(m.loadScore)}`}>{t('ra_load')} {m.loadScore}</span>
                     </div>
                   </div>
                   {isSelected && (
@@ -232,11 +234,11 @@ const ReassignDialog = ({
 
         {/* Reason */}
         <div className="pt-2 border-t border-[#F4F4F5]">
-          <label className="text-xs font-medium text-[#52525B] uppercase tracking-wider">Reason (optional)</label>
+          <label className="text-xs font-medium text-[#52525B] uppercase tracking-wider">{t('ra_reason')}</label>
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="e.g. Manager overloaded, vacation, redistribution…"
+            placeholder={t('ra_reasonPh')}
             rows={2}
             className="mt-1.5 w-full px-3 py-2 rounded-xl border border-[#E4E4E7] text-sm focus:outline-none focus:border-[#4F46E5] resize-none"
             data-testid="reassign-reason"
@@ -252,7 +254,7 @@ const ReassignDialog = ({
             className="px-4 py-2 rounded-xl text-sm font-medium text-[#52525B] hover:bg-[#F4F4F5] transition-colors"
             data-testid="reassign-cancel"
           >
-            Cancel
+            {t('ra_cancel')}
           </button>
           <button
             type="button"
@@ -264,12 +266,12 @@ const ReassignDialog = ({
             {submitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Reassigning…
+                {t('ra_submitting')}
               </>
             ) : (
               <>
                 <ArrowsClockwise size={16} weight="bold" />
-                Reassign {ids.length > 1 ? `(${ids.length})` : ''}
+                {t('ra_submit')} {ids.length > 1 ? `(${ids.length})` : ''}
               </>
             )}
           </button>

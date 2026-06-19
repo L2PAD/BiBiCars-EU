@@ -178,6 +178,87 @@ def render_welcome_email(name: str = "") -> Tuple[str, str, str]:
     subject = "Welcome to BIBI Cars — your cabinet is ready"
     return subject, html, text
 
+def render_invite_email(
+    invite_link: str,
+    *,
+    name: str = "",
+    ttl_days: int = 30,
+    inviter_name: str = "",
+) -> Tuple[str, str, str]:
+    """Customer onboarding INVITE email.
+
+    Sent when a manager / team-lead / admin creates a client in the CRM and
+    wants them to finish onboarding (set a password) and access their cabinet.
+    Returns (subject, html, text). Brand-styled, email-client-safe.
+    """
+    safe_name = (name or "").strip()
+    greeting = f"Hello, {safe_name}!" if safe_name else "Hello!"
+    inviter = (inviter_name or "").strip()
+    by_line = (
+        f"{inviter} from the BIBI Cars team has created a personal cabinet for you."
+        if inviter
+        else "The BIBI Cars team has created a personal cabinet for you."
+    )
+
+    inner = f"""
+      <p style="margin:0 0 6px 0;font-family:'Trebuchet MS',Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:{BRAND_GOLD};font-weight:700;">
+        You're invited
+      </p>
+      <h1 style="margin:0 0 14px 0;font-family:'Trebuchet MS',Helvetica,Arial,sans-serif;font-size:28px;line-height:34px;color:{TEXT};font-weight:800;">
+        {greeting}
+      </h1>
+      <p style="margin:0 0 22px 0;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:24px;color:{TEXT_MUTED};">
+        {by_line} Set your password to activate your account — then you can track your order,
+        sign contracts, view invoices and follow every step of your car's journey from auction to keys.
+      </p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        <tr>
+          <td align="center" style="padding:6px 0 8px 0;">
+            <a href="{invite_link}" target="_blank"
+               style="display:inline-block;background:{BRAND_GOLD};color:#1A1208;text-decoration:none;
+                      font-family:'Trebuchet MS',Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;
+                      letter-spacing:0.4px;padding:15px 38px;border-radius:12px;">
+              Activate my account
+            </a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:18px 0 0 0;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:20px;color:{TEXT_MUTED};">
+        Or copy this link into your browser:
+      </p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+        <tr>
+          <td style="background:{BG_INNER};border:1px solid {BORDER};border-radius:12px;padding:14px 16px;">
+            <a href="{invite_link}" target="_blank"
+               style="font-family:'Courier New',monospace;font-size:13px;line-height:18px;color:{BRAND_GOLD};text-decoration:none;word-break:break-all;">
+              {invite_link}
+            </a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:20px 0 0 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:18px;color:#6A6A64;">
+        This invitation link is valid for {ttl_days} days. If you weren't expecting this email, you can safely ignore it.
+      </p>
+    """
+
+    html = _shell(
+        preheader="Set your password to activate your BIBI Cars cabinet.",
+        inner_html=inner,
+    )
+
+    text = (
+        f"{greeting}\n\n"
+        f"{by_line}\n\n"
+        f"Activate your account and set your password:\n{invite_link}\n\n"
+        f"This invitation link is valid for {ttl_days} days.\n\n"
+        f"— BIBI Cars"
+    )
+
+    subject = "You're invited to BIBI Cars — activate your cabinet"
+    return subject, html, text
+
+
+
 
 
 def render_staff_login_otp_email(

@@ -230,7 +230,7 @@ const LeadFiltersSidebar = ({ filters, onChange, lang, managers, onClose }) => {
                 testId={`leads-filter-priority-${b}`}
               >
                 <span className="inline-block w-4 h-4 rounded font-extrabold text-[9px] flex items-center justify-center" style={{ background: cfg.dot, color: 'white' }}>{b}</span>
-                <span>{cfg.label}</span>
+                <span>{t(cfg.key)}</span>
               </Chip>
             );
           })}

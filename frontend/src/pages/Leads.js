@@ -31,6 +31,7 @@ import LeadFiltersSidebar from '../components/leads/LeadFiltersSidebar';
 import LeadKanbanBoard from '../components/leads/LeadKanbanBoard';
 import LeadTableView from '../components/leads/LeadTableView';
 import LeadCreateModal from '../components/leads/LeadCreateModal';
+import ConvertLeadModal from '../components/leads/ConvertLeadModal';
 import { computeSlaClient } from '../components/leads/LeadSlaBadge';
 import { LEAD_PIPELINE, statusLabel } from '../components/leads/leadConstants';
 import { detectCountry, isValidForCountry } from '../components/ui/PhoneInput';
@@ -87,6 +88,7 @@ const Leads = () => {
   const [formErrors, setFormErrors] = useState({});
 
   const [reassignTarget, setReassignTarget] = useState(null);
+  const [convertTarget, setConvertTarget] = useState(null);
 
   const [showQuoteHistory, setShowQuoteHistory] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
@@ -251,18 +253,9 @@ const Leads = () => {
     } catch (err) { toast.error(t('leadsWs_toastError')); }
   };
 
-  const handleConvert = async (lead) => {
+  const handleConvert = (lead) => {
     if (lead.customerId) { toast.info(t('leadsWs_toastAlreadyClient')); return; }
-    if (!window.confirm(t('leadsWs_confirmConvert'))) return;
-    try {
-      const r = await axios.post(`${API_URL}/api/leads/${lead.id}/convert`);
-      toast.success(t('leadsWs_toastConverted'));
-      fetchData();
-      const cid = r?.data?.customer?.id;
-      if (cid) setTimeout(() => { window.location.href = `/admin/customers?focus=${cid}`; }, 600);
-    } catch (err) {
-      toast.error(err.response?.data?.detail || t('leadsWs_toastConvErr'));
-    }
+    setConvertTarget(lead);
   };
 
   const handleChangeStatus = async (lead, newStatus) => {
@@ -458,6 +451,15 @@ const Leads = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Convert lead → create client (cross-cutting onboarding) */}
+      <ConvertLeadModal
+        lead={convertTarget}
+        open={!!convertTarget}
+        onClose={() => setConvertTarget(null)}
+        onConverted={fetchData}
+        navigate={navigate}
+      />
 
       {/* Reassign dialog */}
       {canReassign && reassignTarget ? (

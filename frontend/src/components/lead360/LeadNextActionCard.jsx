@@ -1,6 +1,7 @@
 import React from 'react';
 import { Phone, Receipt, CheckCircle, Lightning, Archive, UserCircle, ArrowsClockwise, ArrowRight } from '@phosphor-icons/react';
 import { useNavigate } from 'react-router-dom';
+import { useLang } from '../../i18n';
 
 const ICON_BY_KIND = {
   first_call:    Phone,
@@ -16,15 +17,16 @@ const ICON_BY_KIND = {
 };
 
 const URGENCY = {
-  critical: { ring: 'ring-2 ring-[#DC2626]', dot: 'bg-[#DC2626]', label: 'CRITICAL' },
-  high:     { ring: 'ring-2 ring-[#F59E0B]', dot: 'bg-[#F59E0B]', label: 'HIGH' },
-  normal:   { ring: 'ring-1 ring-[#E4E4E7]', dot: 'bg-[#3B82F6]', label: 'NORMAL' },
-  low:      { ring: 'ring-1 ring-[#E4E4E7]', dot: 'bg-[#71717A]', label: 'LOW' },
-  none:     { ring: 'ring-1 ring-[#E4E4E7]', dot: 'bg-[#A1A1AA]', label: '' },
+  critical: { ring: 'ring-2 ring-[#DC2626]', dot: 'bg-[#DC2626]', key: 'l360_urgency_critical' },
+  high:     { ring: 'ring-2 ring-[#F59E0B]', dot: 'bg-[#F59E0B]', key: 'l360_urgency_high' },
+  normal:   { ring: 'ring-1 ring-[#E4E4E7]', dot: 'bg-[#3B82F6]', key: 'l360_urgency_normal' },
+  low:      { ring: 'ring-1 ring-[#E4E4E7]', dot: 'bg-[#71717A]', key: 'l360_urgency_low' },
+  none:     { ring: 'ring-1 ring-[#E4E4E7]', dot: 'bg-[#A1A1AA]', key: '' },
 };
 
 const LeadNextActionCard = ({ health, lead, onCall }) => {
   const navigate = useNavigate();
+  const { t } = useLang();
   const next = (health || {}).next_action;
   if (!next) return null;
   const Icon = ICON_BY_KIND[next.kind] || Phone;
@@ -43,13 +45,18 @@ const LeadNextActionCard = ({ health, lead, onCall }) => {
     }
   };
 
+  // Translate the action title by kind; fall back to the server-provided title.
+  const titleKey = `l360_na_${next.kind || ''}`;
+  const tt = t(titleKey);
+  const title = tt && tt !== titleKey ? tt : (next.title || '');
+
   const ctaLabel = (() => {
-    if (next.kind === 'view_customer') return 'Open customer';
-    if (next.kind === 'archive')       return 'Archive';
-    if (next.kind === 'send_quote')    return 'Send proposal';
-    if (next.kind === 'complete_task') return 'Open task';
-    if (next.phone || lead?.phone)     return 'Call now';
-    return 'Take action';
+    if (next.kind === 'view_customer') return t('l360_cta_openCustomer');
+    if (next.kind === 'archive')       return t('l360_cta_archive');
+    if (next.kind === 'send_quote')    return t('l360_cta_sendProposal');
+    if (next.kind === 'complete_task') return t('l360_cta_openTask');
+    if (next.phone || lead?.phone)     return t('l360_cta_callNow');
+    return t('l360_cta_takeAction');
   })();
 
   return (
@@ -58,10 +65,10 @@ const LeadNextActionCard = ({ health, lead, onCall }) => {
       data-testid="lead-next-action-card"
     >
       <div className="flex items-center justify-between mb-2">
-        <div className="text-[10px] uppercase tracking-wider font-bold text-[#71717A]">Next Action</div>
-        {u.label ? (
+        <div className="text-[10px] uppercase tracking-wider font-bold text-[#71717A]">{t('l360_nextAction')}</div>
+        {u.key ? (
           <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#52525B]">
-            <span className={`w-1.5 h-1.5 rounded-full ${u.dot}`}></span> {u.label}
+            <span className={`w-1.5 h-1.5 rounded-full ${u.dot}`}></span> {t(u.key)}
           </span>
         ) : null}
       </div>
@@ -71,7 +78,7 @@ const LeadNextActionCard = ({ health, lead, onCall }) => {
           <Icon size={20} weight="duotone" className="text-[#18181B]" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[15px] font-bold text-[#18181B] leading-tight">{next.title}</div>
+          <div className="text-[15px] font-bold text-[#18181B] leading-tight">{title}</div>
           {next.phone || lead?.phone ? (
             <div className="text-[12px] text-[#71717A] mt-0.5 truncate">{next.phone || lead?.phone}</div>
           ) : null}

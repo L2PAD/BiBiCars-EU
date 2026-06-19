@@ -17,6 +17,7 @@ import { motion } from 'framer-motion';
 import { useLang } from '../i18n';
 import RefreshButton from '../components/ui/RefreshButton';
 import ReassignDialog from '../components/ui/ReassignDialog';
+import CustomerAccessPanel from '../components/crm/CustomerAccessPanel';
 import useManagersMap from '../hooks/useManagersMap';
 import {
   ArrowLeft,
@@ -388,7 +389,7 @@ const Customer360 = () => {
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-[#E4E4E7] overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0" style={{ scrollbarWidth: 'none' }}>
-        {['overview', 'roadmap', 'comments', 'tasks', 'legal', 'leads', 'quotes', 'deals', 'sales', 'meetings', 'invoices', 'orders', 'payments', 'deposits', 'calls', 'contracts', 'documents', 'activity', 'timeline', 'history'].map((tab) => (
+        {['overview', 'account', 'roadmap', 'comments', 'tasks', 'legal', 'leads', 'quotes', 'deals', 'sales', 'meetings', 'invoices', 'orders', 'payments', 'deposits', 'calls', 'contracts', 'documents', 'activity', 'timeline', 'history'].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -492,6 +493,10 @@ const Customer360 = () => {
             ].sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 5)}
           />
           </>
+        )}
+
+        {activeTab === 'account' && (
+          <CustomerAccessPanel customerId={id} customerEmail={customer.email} />
         )}
 
         {activeTab === 'legal' && (

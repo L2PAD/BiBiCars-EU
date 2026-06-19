@@ -52,7 +52,7 @@ _PUBLIC = _compile([
     r"/api/auth/password-policy",
     r"/api/auth/2fa/verify",
     r"/api/auth/email-otp/(request|verify)",
-    r"/api/customer-auth/(register|login|verify-email|resend-email-code|forgot-password|reset-password|validate-reset-token)",
+    r"/api/customer-auth/(register|login|verify-email|resend-email-code|forgot-password|reset-password|validate-reset-token|validate-invite|accept-invite)",
     r"/api/customer-auth/google/(verify|logout)",
     # Customer 2FA login challenge — pre-auth (no bearer yet, password/Google
     # already verified upstream; protected by a short-lived challenge_token).

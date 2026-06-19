@@ -1,13 +1,14 @@
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { useLang } from '../../i18n';
 
 export const LEAD_HEALTH_CFG = {
-  healthy: { emoji: '🟢', label: 'Healthy',  cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', ring: '#10B981' },
-  warning: { emoji: '🟡', label: 'Warning',  cls: 'bg-amber-50 text-amber-700 border-amber-200',       ring: '#F59E0B' },
-  overdue: { emoji: '🔴', label: 'Overdue',  cls: 'bg-red-50 text-red-700 border-red-200',              ring: '#DC2626' },
-  stale:   { emoji: '⚪', label: 'Stale',     cls: 'bg-zinc-100 text-zinc-700 border-zinc-200',           ring: '#71717A' },
-  dead:    { emoji: '⚫', label: 'Dead',      cls: 'bg-zinc-900/10 text-zinc-700 border-zinc-300',       ring: '#3F3F46' },
-  converted: { emoji: '🏆', label: 'Converted', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300', ring: '#15803D' },
+  healthy: { emoji: '🟢', key: 'lh_healthy',  cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', ring: '#10B981' },
+  warning: { emoji: '🟡', key: 'lh_warning',  cls: 'bg-amber-50 text-amber-700 border-amber-200',       ring: '#F59E0B' },
+  overdue: { emoji: '🔴', key: 'lh_overdue',  cls: 'bg-red-50 text-red-700 border-red-200',              ring: '#DC2626' },
+  stale:   { emoji: '⚪', key: 'lh_stale',     cls: 'bg-zinc-100 text-zinc-700 border-zinc-200',           ring: '#71717A' },
+  dead:    { emoji: '⚫', key: 'lh_dead',      cls: 'bg-zinc-900/10 text-zinc-700 border-zinc-300',       ring: '#3F3F46' },
+  converted: { emoji: '🏆', key: 'lh_converted', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300', ring: '#15803D' },
 };
 
 const SIZE = {
@@ -18,6 +19,7 @@ const SIZE = {
 };
 
 const Inner = ({ health, size = 'md', showScore = true, testId }) => {
+  const { t } = useLang();
   if (!health) return null;
   const cfg = LEAD_HEALTH_CFG[health.status] || LEAD_HEALTH_CFG.warning;
   const s = SIZE[size] || SIZE.md;
@@ -27,7 +29,7 @@ const Inner = ({ health, size = 'md', showScore = true, testId }) => {
       data-testid={testId || `lead-health-${health.status}`}
     >
       <span>{cfg.emoji}</span>
-      <span>{cfg.label}</span>
+      <span>{t(cfg.key)}</span>
       {showScore && typeof health.score === 'number' ? (
         <span className="opacity-70 tabular-nums">· {health.score}</span>
       ) : null}
@@ -36,6 +38,7 @@ const Inner = ({ health, size = 'md', showScore = true, testId }) => {
 };
 
 const LeadHealthBadge = ({ health, size, showScore = true, testId }) => {
+  const { t } = useLang();
   if (!health) return null;
   const reasons = (health.reasons || []).slice(0, 4);
   if (!reasons.length) return <Inner health={health} size={size} showScore={showScore} testId={testId} />;
@@ -46,13 +49,13 @@ const LeadHealthBadge = ({ health, size, showScore = true, testId }) => {
           <span><Inner health={health} size={size} showScore={showScore} testId={testId} /></span>
         </TooltipTrigger>
         <TooltipContent side="bottom" align="start" className="max-w-xs bg-white border border-[#E4E4E7] rounded-lg shadow-lg p-2.5">
-          <div className="text-[11px] font-semibold text-[#52525B] mb-1">Why this score</div>
+          <div className="text-[11px] font-semibold text-[#52525B] mb-1">{t('lh_whyScore')}</div>
           <ul className="text-[12px] text-[#18181B] space-y-0.5">
             {reasons.map((r, i) => (<li key={i}>• {r}</li>))}
           </ul>
           {typeof health.days_since_contact === 'number' ? (
             <div className="mt-2 text-[10px] text-[#71717A]">
-              Last contact: {health.days_since_contact}d ago
+              {t('lh_lastContactAgo')} {health.days_since_contact}{t('lh_daysAgo')}
             </div>
           ) : null}
         </TooltipContent>

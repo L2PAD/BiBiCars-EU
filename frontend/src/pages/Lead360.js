@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, Phone, EnvelopeSimple, Tag, UserCircle,
   ArrowsClockwise, Pencil, UserPlus, Trash, ChartLine, ListChecks,
-  Clock, NotePencil, Car, Receipt, ClockCounterClockwise, Pulse,
+  Clock, NotePencil, Car, Receipt, ClockCounterClockwise, Pulse, Paperclip,
 } from '@phosphor-icons/react';
 
 import { API_URL, useAuth } from '../App';
@@ -24,6 +24,7 @@ import { useLang } from '../i18n';
 import RefreshButton from '../components/ui/RefreshButton';
 import ReassignDialog from '../components/ui/ReassignDialog';
 import CallsTab from '../components/calls/CallsTab';
+import LeadFilesPanel from '../components/lead360/LeadFilesPanel';
 
 import LeadHealthBadge from '../components/lead360/LeadHealthBadge';
 import LeadNextActionCard from '../components/lead360/LeadNextActionCard';
@@ -48,14 +49,24 @@ const formatWhen = (iso) => {
   try { return new Date(iso).toLocaleString(); } catch { return String(iso); }
 };
 
+// Translate a backend next-action object by its `kind` (so the suggested
+// action reads in the active language), falling back to the server title.
+const nextActionTitle = (next, t) => {
+  if (!next) return '';
+  const key = `l360_na_${next.kind || ''}`;
+  const translated = t(key);
+  return translated && translated !== key ? translated : (next.title || '');
+};
+
 const TABS = [
-  { key: 'overview', label: 'Overview', icon: ChartLine },
-  { key: 'calls',    label: 'Calls',    icon: Phone },
-  { key: 'activity', label: 'Activity', icon: Pulse },
-  { key: 'timeline', label: 'Timeline', icon: Clock },
-  { key: 'notes',    label: 'Notes',    icon: NotePencil },
-  { key: 'cars',     label: 'Cars',     icon: Car },
-  { key: 'history',  label: 'History',  icon: ClockCounterClockwise },
+  { key: 'overview', labelKey: 'l360_tab_overview', icon: ChartLine },
+  { key: 'calls',    labelKey: 'l360_tab_calls',    icon: Phone },
+  { key: 'activity', labelKey: 'l360_tab_activity', icon: Pulse },
+  { key: 'timeline', labelKey: 'l360_tab_timeline', icon: Clock },
+  { key: 'notes',    labelKey: 'l360_tab_notes',    icon: NotePencil },
+  { key: 'cars',     labelKey: 'l360_tab_cars',     icon: Car },
+  { key: 'files',    labelKey: 'l360_tab_files',    icon: Paperclip },
+  { key: 'history',  labelKey: 'l360_tab_history',  icon: ClockCounterClockwise },
 ];
 
 const KpiTile = ({ label, value, hint, testId }) => (
@@ -145,10 +156,10 @@ const Lead360 = () => {
 
   const handleConvert = async () => {
     if (data?.lead?.customerId) return;
-    if (!window.confirm('Convert this lead to a customer?')) return;
+    if (!window.confirm(t('l360_confirmConvert'))) return;
     try {
       const r = await axios.post(`${API_URL}/api/leads/${id}/convert`);
-      toast.success('Converted');
+      toast.success(t('l360_converted'));
       const cid = r?.data?.customer?.id;
       if (cid) setTimeout(() => navigate(`/admin/customers/${cid}/360`), 600);
       else fetchData();
@@ -156,10 +167,10 @@ const Lead360 = () => {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Delete this lead permanently?')) return;
+    if (!window.confirm(t('l360_confirmDelete'))) return;
     try {
       await axios.delete(`${API_URL}/api/leads/${id}`);
-      toast.success('Deleted');
+      toast.success(t('l360_deleted'));
       navigate('/admin/leads');
     } catch (e) { toast.error('Failed'); }
   };
@@ -247,25 +258,25 @@ const Lead360 = () => {
           className="inline-flex items-center gap-1.5 text-[13px] text-[#52525B] hover:text-[#18181B]"
           data-testid="lead360-back"
         >
-          <ArrowLeft size={14} weight="bold" /> Workspace
+          <ArrowLeft size={14} weight="bold" /> {t('l360_workspace')}
         </button>
         <div className="flex flex-wrap items-center gap-2">
-          <RefreshButton onClick={fetchData} loading={loading} ariaLabel="Refresh" testId="lead360-refresh" />
+          <RefreshButton onClick={fetchData} loading={loading} ariaLabel={t('l360_refresh')} testId="lead360-refresh" />
           <button onClick={openEdit} className="inline-flex items-center gap-1.5 px-3 py-2 text-[13px] bg-white border border-[#E4E4E7] hover:bg-[#FAFAFA] rounded-xl" data-testid="lead360-edit">
-            <Pencil size={13} /> Edit
+            <Pencil size={13} /> {t('l360_edit')}
           </button>
           {canReassign ? (
             <button onClick={() => setShowReassign(true)} className="inline-flex items-center gap-1.5 px-3 py-2 text-[13px] bg-white border border-[#E4E4E7] hover:bg-[#FAFAFA] rounded-xl" data-testid="lead360-reassign">
-              <ArrowsClockwise size={13} /> Reassign
+              <ArrowsClockwise size={13} /> {t('l360_reassign')}
             </button>
           ) : null}
           {!lead.customerId ? (
             <button onClick={handleConvert} className="inline-flex items-center gap-1.5 px-3 py-2 text-[13px] bg-[#16A34A] hover:bg-[#15803D] text-white rounded-xl font-semibold" data-testid="lead360-convert">
-              <UserPlus size={13} weight="bold" /> Convert
+              <UserPlus size={13} weight="bold" /> {t('l360_convert')}
             </button>
           ) : (
             <Link to={`/admin/customers/${lead.customerId}/360`} className="inline-flex items-center gap-1.5 px-3 py-2 text-[13px] bg-[#16A34A] hover:bg-[#15803D] text-white rounded-xl font-semibold" data-testid="lead360-open-customer">
-              <UserCircle size={13} weight="bold" /> Open customer
+              <UserCircle size={13} weight="bold" /> {t('l360_openCustomer')}
             </Link>
           )}
           <button onClick={handleDelete} className="p-2 hover:bg-[#FEE2E2] text-[#DC2626] rounded-xl" data-testid="lead360-delete">
@@ -310,7 +321,7 @@ const Lead360 = () => {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 text-[12px]">
               <div>
-                <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA]">Phone</div>
+                <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA]">{t('l360_phone')}</div>
                 {lead.phone ? (
                   <a href={`tel:${String(lead.phone).replace(/\s+/g,'')}`} className="text-[#18181B] hover:text-[#4F46E5] font-semibold tabular-nums inline-flex items-center gap-1" data-testid="lead360-phone">
                     <Phone size={11} /> {lead.phone}
@@ -318,7 +329,7 @@ const Lead360 = () => {
                 ) : <span className="text-[#A1A1AA]">—</span>}
               </div>
               <div>
-                <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA]">Email</div>
+                <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA]">{t('l360_email')}</div>
                 {lead.email ? (
                   <a href={`mailto:${lead.email}`} className="text-[#18181B] hover:text-[#4F46E5] font-medium truncate inline-flex items-center gap-1" data-testid="lead360-email">
                     <EnvelopeSimple size={11} /> <span className="truncate">{lead.email}</span>
@@ -326,27 +337,27 @@ const Lead360 = () => {
                 ) : <span className="text-[#A1A1AA]">—</span>}
               </div>
               <div>
-                <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA]">Source</div>
+                <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA]">{t('l360_source')}</div>
                 <span className="text-[#18181B] inline-flex items-center gap-1"><Tag size={11} /> {sourceLabel(lang, lead.source)}</span>
               </div>
               <div>
-                <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA]">Manager</div>
+                <div className="text-[10px] uppercase tracking-wider font-bold text-[#A1A1AA]">{t('l360_manager')}</div>
                 {manager ? (
                   <span className="text-[#18181B] inline-flex items-center gap-1 truncate" data-testid="lead360-manager">
                     <UserCircle size={11} /> <span className="truncate">{manager.name || manager.email}</span>
                   </span>
-                ) : <span className="text-[#A1A1AA] italic">unassigned</span>}
+                ) : <span className="text-[#A1A1AA] italic">{t('l360_unassigned')}</span>}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#A1A1AA] mt-3">
-              <span data-testid="lead360-created-at">Created: {formatWhen(lead.created_at)}</span>
+              <span data-testid="lead360-created-at">{t('l360_created')}: {formatWhen(lead.created_at)}</span>
               <span>·</span>
               <span data-testid="lead360-last-contact-at">
-                Last contact: {formatWhen(lead.lastContactAt || health?.last_contact)}
+                {t('l360_lastContact')}: {formatWhen(lead.lastContactAt || health?.last_contact)}
               </span>
               <span>·</span>
               <span data-testid="lead360-status-changed-at">
-                Status changed: {formatWhen(lead.statusChangedAt)}
+                {t('l360_statusChanged')}: {formatWhen(lead.statusChangedAt)}
               </span>
               {(lead.budgetEur || lead.budgetUsd) ? (<><span>·</span><span className="text-[#15803D] font-semibold">€{Number(lead.budgetEur || lead.budgetUsd).toLocaleString()}</span></>) : null}
             </div>
@@ -359,7 +370,7 @@ const Lead360 = () => {
         <div className="lg:col-span-2">
           {/* Tabs */}
           <div className="flex items-center gap-1 mb-3 border-b border-[#E4E4E7] overflow-x-auto" data-testid="lead360-tabs">
-            {TABS.map(({ key, label, icon: Icon }) => (
+            {TABS.map(({ key, labelKey, icon: Icon }) => (
               <button
                 key={key}
                 onClick={() => setTab(key)}
@@ -367,7 +378,7 @@ const Lead360 = () => {
                 data-testid={`lead360-tab-${key}`}
               >
                 <Icon size={14} />
-                {label}
+                {t(labelKey)}
                 {key === 'calls'    && counts?.recent_calls ? <span className="text-[10px] bg-[#F4F4F5] text-[#52525B] px-1.5 py-0.5 rounded-full">{counts.recent_calls}</span> : null}
                 {key === 'timeline' && counts?.timeline     ? <span className="text-[10px] bg-[#F4F4F5] text-[#52525B] px-1.5 py-0.5 rounded-full">{counts.timeline}</span> : null}
                 {key === 'notes'    && counts?.notes        ? <span className="text-[10px] bg-[#F4F4F5] text-[#52525B] px-1.5 py-0.5 rounded-full">{counts.notes}</span> : null}
@@ -381,35 +392,35 @@ const Lead360 = () => {
             {tab === 'overview' ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <KpiTile label="Health" value={health?.score ?? '—'} hint={health?.status} testId="lead360-kpi-health" />
-                  <KpiTile label="Open tasks" value={counts?.open_tasks ?? 0} hint={`${health?.overdue_tasks || 0} overdue`} testId="lead360-kpi-tasks" />
-                  <KpiTile label="Calls" value={counts?.recent_calls ?? 0} hint="recent" testId="lead360-kpi-calls" />
-                  <KpiTile label="Cars" value={counts?.related_cars ?? 0} hint="linked VINs" testId="lead360-kpi-cars" />
+                  <KpiTile label={t('l360_kpi_health')} value={health?.score ?? '—'} hint={health?.status ? t(`lh_${health.status}`) : ''} testId="lead360-kpi-health" />
+                  <KpiTile label={t('l360_kpi_openTasks')} value={counts?.open_tasks ?? 0} hint={`${health?.overdue_tasks || 0} ${t('l360_hint_overdue')}`} testId="lead360-kpi-tasks" />
+                  <KpiTile label={t('l360_kpi_calls')} value={counts?.recent_calls ?? 0} hint={t('l360_hint_recent')} testId="lead360-kpi-calls" />
+                  <KpiTile label={t('l360_kpi_cars')} value={counts?.related_cars ?? 0} hint={t('l360_hint_linkedVins')} testId="lead360-kpi-cars" />
                 </div>
 
                 {/* Tasks list */}
                 <div className="bg-white border border-[#E4E4E7] rounded-2xl p-4" data-testid="lead360-tasks-panel">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-[12px] uppercase tracking-wider font-bold text-[#52525B] inline-flex items-center gap-1.5">
-                      <ListChecks size={13} /> Open tasks
+                      <ListChecks size={13} /> {t('l360_openTasks')}
                     </div>
                     <span className="text-[10px] text-[#A1A1AA]">{(open_tasks || []).length}</span>
                   </div>
                   {(open_tasks || []).length === 0 ? (
-                    <div className="text-[12px] text-[#A1A1AA] italic py-4 text-center">No open tasks. {' '}
-                      {health?.next_action?.title ? <span className="font-semibold text-[#52525B]">Suggested: {health.next_action.title}</span> : null}
+                    <div className="text-[12px] text-[#A1A1AA] italic py-4 text-center">{t('l360_noOpenTasks')} {' '}
+                      {health?.next_action?.title ? <span className="font-semibold text-[#52525B]">{t('l360_suggested')} {nextActionTitle(health.next_action, t)}</span> : null}
                     </div>
                   ) : (
                     <ul className="space-y-2">
-                      {open_tasks.map(t => (
-                        <li key={t.id} className="flex items-center justify-between gap-2 bg-[#FAFAFA] rounded-lg px-3 py-2" data-testid={`lead360-task-${t.id}`}>
+                      {open_tasks.map(task => (
+                        <li key={task.id} className="flex items-center justify-between gap-2 bg-[#FAFAFA] rounded-lg px-3 py-2" data-testid={`lead360-task-${task.id}`}>
                           <div className="min-w-0 flex-1">
-                            <div className="text-[13px] font-semibold text-[#18181B] truncate">{t.title || t.description || 'Task'}</div>
-                            <div className="text-[11px] text-[#71717A]">Due {formatWhen(t.due_at || t.dueDate)}</div>
+                            <div className="text-[13px] font-semibold text-[#18181B] truncate">{task.title || task.description || t('l360_task')}</div>
+                            <div className="text-[11px] text-[#71717A]">{t('l360_due')} {formatWhen(task.due_at || task.dueDate)}</div>
                           </div>
                           <span className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider"
-                            style={{ background: (t.priority === 'high') ? '#FEE2E2' : '#F4F4F5', color: (t.priority === 'high') ? '#B91C1C' : '#52525B' }}>
-                            {t.priority || 'normal'}
+                            style={{ background: (task.priority === 'high') ? '#FEE2E2' : '#F4F4F5', color: (task.priority === 'high') ? '#B91C1C' : '#52525B' }}>
+                            {t(`l360_prio_${task.priority || 'normal'}`)}
                           </span>
                         </li>
                       ))}
@@ -421,21 +432,21 @@ const Lead360 = () => {
                 <div className="bg-white border border-[#E4E4E7] rounded-2xl p-4" data-testid="lead360-recent-calls">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-[12px] uppercase tracking-wider font-bold text-[#52525B] inline-flex items-center gap-1.5">
-                      <Phone size={13} /> Recent calls
+                      <Phone size={13} /> {t('l360_recentCalls')}
                     </div>
                     {counts?.recent_calls ? (
-                      <button onClick={() => setTab('calls')} className="text-[11px] text-[#4F46E5] hover:underline">View all</button>
+                      <button onClick={() => setTab('calls')} className="text-[11px] text-[#4F46E5] hover:underline">{t('l360_viewAll')}</button>
                     ) : null}
                   </div>
                   {(recent_calls || []).length === 0 ? (
-                    <div className="text-[12px] text-[#A1A1AA] italic py-4 text-center">No calls yet</div>
+                    <div className="text-[12px] text-[#A1A1AA] italic py-4 text-center">{t('l360_noCalls')}</div>
                   ) : (
                     <ul className="space-y-1.5">
                       {(recent_calls || []).slice(0, 5).map((c, i) => (
                         <li key={i} className="flex items-center justify-between gap-2 text-[12px] py-1.5 border-b border-[#F4F4F5] last:border-b-0">
                           <span className="inline-flex items-center gap-1.5">
                             <Phone size={10} className={c.direction === 'outbound' ? 'text-[#10B981]' : 'text-[#06B6D4]'} />
-                            <span className="capitalize">{c.direction || 'call'}</span>
+                            <span>{t(`l360_dir_${c.direction || 'call'}`)}</span>
                             <span className="text-[#71717A]">· {c.duration || 0}s</span>
                           </span>
                           <span className="text-[10px] text-[#A1A1AA]">{formatWhen(c.created_at || c.start_time)}</span>
@@ -449,9 +460,9 @@ const Lead360 = () => {
                 <div className="bg-white border border-[#E4E4E7] rounded-2xl p-4" data-testid="lead360-timeline-preview">
                   <div className="flex items-center justify-between mb-3">
                     <div className="text-[12px] uppercase tracking-wider font-bold text-[#52525B] inline-flex items-center gap-1.5">
-                      <Clock size={13} /> Recent activity
+                      <Clock size={13} /> {t('l360_recentActivity')}
                     </div>
-                    <button onClick={() => setTab('timeline')} className="text-[11px] text-[#4F46E5] hover:underline">View all</button>
+                    <button onClick={() => setTab('timeline')} className="text-[11px] text-[#4F46E5] hover:underline">{t('l360_viewAll')}</button>
                   </div>
                   <LeadTimelinePanel items={(timeline || []).slice(0, 6)} />
                 </div>
@@ -463,7 +474,7 @@ const Lead360 = () => {
                 <CallsTab customerId={lead.customerId} customerPhone={lead.phone} leadId={lead.id} />
               ) : (
                 <div className="bg-white border border-[#E4E4E7] rounded-2xl p-8 text-center text-[#A1A1AA] italic text-[13px]">
-                  No phone number set — add one to enable call history
+                  {t('l360_noPhone')}
                 </div>
               )
             ) : null}
@@ -486,6 +497,10 @@ const Lead360 = () => {
               <LeadRelatedCars items={related_cars} />
             ) : null}
 
+            {tab === 'files' ? (
+              <LeadFilesPanel leadId={id} onAfterChange={fetchData} />
+            ) : null}
+
             {tab === 'history' ? (
               <ChangeHistoryTab entityType="lead" entityId={id} />
             ) : null}
@@ -502,7 +517,7 @@ const Lead360 = () => {
 
           {/* Quick info card */}
           <div className="bg-white border border-[#E4E4E7] rounded-2xl p-4">
-            <div className="text-[10px] uppercase tracking-wider font-bold text-[#71717A] mb-2">Vehicle interest</div>
+            <div className="text-[10px] uppercase tracking-wider font-bold text-[#71717A] mb-2">{t('l360_vehicleInterest')}</div>
             {lead.vehicleInterest || lead.vin ? (
               <div>
                 <div className="text-[13px] font-semibold text-[#18181B] inline-flex items-center gap-1.5">
@@ -511,11 +526,11 @@ const Lead360 = () => {
                 {lead.vin ? <div className="text-[10px] font-mono text-[#71717A] mt-1">VIN: {lead.vin}</div> : null}
               </div>
             ) : (
-              <div className="text-[12px] text-[#A1A1AA] italic">Not specified</div>
+              <div className="text-[12px] text-[#A1A1AA] italic">{t('l360_notSpecified')}</div>
             )}
             {(lead.budgetEur || lead.budgetUsd) ? (
               <div className="mt-3 pt-3 border-t border-[#F4F4F5]">
-                <div className="text-[10px] uppercase tracking-wider font-bold text-[#71717A]">Budget</div>
+                <div className="text-[10px] uppercase tracking-wider font-bold text-[#71717A]">{t('l360_budget')}</div>
                 <div className="text-lg font-bold text-[#15803D] tabular-nums mt-0.5">€{Number(lead.budgetEur || lead.budgetUsd).toLocaleString()}</div>
               </div>
             ) : null}
@@ -523,7 +538,7 @@ const Lead360 = () => {
 
           {lead.description ? (
             <div className="bg-white border border-[#E4E4E7] rounded-2xl p-4">
-              <div className="text-[10px] uppercase tracking-wider font-bold text-[#71717A] mb-2">Description</div>
+              <div className="text-[10px] uppercase tracking-wider font-bold text-[#71717A] mb-2">{t('l360_description')}</div>
               <div className="text-[13px] text-[#18181B] whitespace-pre-wrap break-words">{lead.description}</div>
             </div>
           ) : null}

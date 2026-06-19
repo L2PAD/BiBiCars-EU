@@ -6394,6 +6394,7 @@ async def _build_lead_timeline(lead_id: str, lead: Dict[str, Any], limit: int = 
             "icon": "Star",
             "title": "Lead created",
             "subtitle": f"Source: {lead.get('source') or '—'}",
+            "params": {"source": lead.get("source") or ""},
             "at":   lead["created_at"],
             "color": "#3B82F6",
         })
@@ -6413,6 +6414,7 @@ async def _build_lead_timeline(lead_id: str, lead: Dict[str, Any], limit: int = 
                     "icon":  "ArrowRight",
                     "title": f"Status: {meta.get('from') or '?'} → {meta.get('to') or '?'}",
                     "subtitle": meta.get("reason") or "",
+                    "params": {"from": meta.get("from") or "", "to": meta.get("to") or ""},
                     "at":    e.get("created_at"),
                     "color": "#8B5CF6",
                     "by":    e.get("created_by"),
@@ -6435,6 +6437,7 @@ async def _build_lead_timeline(lead_id: str, lead: Dict[str, Any], limit: int = 
                 "icon":  "ArrowRight",
                 "title": f"Status: {meta.get('from') or '?'} → {meta.get('to') or '?'}",
                 "subtitle": meta.get("reason") or "",
+                "params": {"from": meta.get("from") or "", "to": meta.get("to") or ""},
                 "at":    e.get("created_at") or e.get("timestamp"),
                 "color": "#8B5CF6",
                 "by":    e.get("user") or e.get("user_email"),
@@ -6453,6 +6456,7 @@ async def _build_lead_timeline(lead_id: str, lead: Dict[str, Any], limit: int = 
             "icon":  "Phone",
             "title": f"{direction.capitalize() or 'Call'} — {dur}s",
             "subtitle": (c.get("from") or "") + " → " + (c.get("to") or ""),
+            "params": {"direction": direction, "duration": dur},
             "at":    c.get("created_at") or c.get("start_time"),
             "color": "#10B981" if direction == "outbound" else "#06B6D4",
             "meta":  {"duration": dur, "recording": c.get("recording_url")},
@@ -6842,6 +6846,128 @@ async def delete_lead_note(
         q["created_by"] = uid
     res = await db.lead_notes.delete_one(q)
     return {"success": True, "deleted": res.deleted_count}
+
+
+# ─── Lead file attachments ────────────────────────────────────────────────
+# Documents/files attached to a lead's workspace. Storage mirrors the
+# customer-documents pattern: metadata + inline base64 data URL (cap 15 MB),
+# stored in `db.lead_files`. List returns metadata only (light); the download
+# endpoint returns the data URL so the browser can save the file.
+_LEAD_FILE_MAX_BYTES = 15 * 1024 * 1024
+
+
+@fastapi_app.get("/api/leads/{lead_id}/files")
+async def list_lead_files(
+    lead_id: str,
+    current_user: Dict[str, Any] = Depends(require_user),
+):
+    lead = await db.leads.find_one({"id": lead_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    if not _can_user_see_lead(current_user, lead):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    # Project everything EXCEPT the heavy data_url payload.
+    cursor = (
+        db.lead_files.find({"leadId": lead_id}, {"_id": 0, "data_url": 0})
+        .sort("created_at", -1)
+        .limit(200)
+    )
+    items = await cursor.to_list(length=200)
+    return {"success": True, "items": items, "total": len(items)}
+
+
+@fastapi_app.post("/api/leads/{lead_id}/files")
+async def upload_lead_file(
+    lead_id: str,
+    payload: Dict[str, Any] = Body(...),
+    request: Request = None,
+    current_user: Dict[str, Any] = Depends(require_user),
+):
+    """Attach a file to a lead. Body: { name, mime, data_url } (base64) or
+    { name, mime, file_url } for a pre-uploaded asset."""
+    lead = await db.leads.find_one({"id": lead_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    if not _can_user_see_lead(current_user, lead):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    name = (payload.get("name") or "file").strip()
+    mime = (payload.get("mime") or "application/octet-stream").strip()
+    url = payload.get("data_url") or payload.get("file_url") or ""
+    if not url:
+        raise HTTPException(status_code=400, detail="data_url or file_url is required")
+    if isinstance(url, str) and url.startswith("data:") and len(url) > _LEAD_FILE_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds 15 MB cap")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    file_doc = {
+        "id":              f"lfile-{datetime.now(timezone.utc).timestamp()}",
+        "leadId":          lead_id,
+        "name":            name,
+        "mime":            mime,
+        "data_url":        url,
+        "size":            int(payload.get("size") or (len(url) if isinstance(url, str) else 0)),
+        "created_at":      now_iso,
+        "uploaded_by":     current_user.get("id") or current_user.get("email"),
+        "uploaded_by_name": current_user.get("name") or current_user.get("email"),
+    }
+    await db.lead_files.insert_one(file_doc)
+    await db.leads.update_one({"id": lead_id}, {"$set": {"updated_at": now_iso}})
+    try:
+        await audit(
+            action="lead.file.upload", user=current_user,
+            resource=f"lead:{lead_id}", meta={"file_id": file_doc["id"], "name": name},
+            request=request,
+        )
+    except Exception:
+        pass
+    # Return metadata only (no data_url) so the list stays light.
+    meta = {k: v for k, v in file_doc.items() if k not in ("data_url", "_id")}
+    return {"success": True, "file": meta}
+
+
+@fastapi_app.get("/api/leads/{lead_id}/files/{file_id}/download")
+async def download_lead_file(
+    lead_id: str,
+    file_id: str,
+    current_user: Dict[str, Any] = Depends(require_user),
+):
+    lead = await db.leads.find_one({"id": lead_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    if not _can_user_see_lead(current_user, lead):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    row = await db.lead_files.find_one({"id": file_id, "leadId": lead_id}, {"_id": 0})
+    if not row:
+        raise HTTPException(status_code=404, detail="File not found")
+    return {
+        "success": True,
+        "id": row["id"],
+        "name": row.get("name"),
+        "mime": row.get("mime"),
+        "data_url": row.get("data_url"),
+    }
+
+
+@fastapi_app.delete("/api/leads/{lead_id}/files/{file_id}")
+async def delete_lead_file(
+    lead_id: str,
+    file_id: str,
+    current_user: Dict[str, Any] = Depends(require_user),
+):
+    lead = await db.leads.find_one({"id": lead_id}, {"_id": 0})
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    if not _can_user_see_lead(current_user, lead):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    uid = current_user.get("id") or current_user.get("email")
+    role = (current_user.get("role") or "").lower()
+    q = {"id": file_id, "leadId": lead_id}
+    if role not in ("admin", "master_admin", "owner", "team_lead"):
+        q["uploaded_by"] = uid
+    res = await db.lead_files.delete_one(q)
+    return {"success": True, "deleted": res.deleted_count}
+
 
 
 # ─── Wave 9: GET /api/leads/{id}/related-cars ──────────────────────────────
@@ -19289,7 +19415,7 @@ async def delete_lead(lead_id: str):
 
 
 @fastapi_app.post("/api/leads/{lead_id}/convert")
-async def convert_lead_to_customer(lead_id: str, data: Dict[str, Any] = Body(default={})):
+async def convert_lead_to_customer(lead_id: str, request: Request, data: Dict[str, Any] = Body(default={})):
     """Convert a lead into a customer (Wave 4 — manual conversion flow).
 
     Business rules:
@@ -19391,12 +19517,26 @@ async def convert_lead_to_customer(lead_id: str, data: Dict[str, Any] = Body(def
     )
     lead = await db.leads.find_one({"id": lead_id}, {"_id": 0}) or lead
 
-    return {
+    # Cross-cutting onboarding — optionally invite the freshly-created client
+    # to set a password and access their cabinet (dry-run safe).
+    invite_payload = None
+    if data.get("sendInvite") and (customer.get("email") or "").strip():
+        try:
+            invite_payload = await _issue_customer_invite(customer, None, str(request.base_url))
+        except ValueError:
+            invite_payload = None
+        except Exception as _inv_err:
+            logger.warning(f"[lead.convert] invite dispatch failed for {customer.get('id')}: {_inv_err}")
+
+    result = {
         "success":   True,
         "customer":  customer,
         "lead":      lead,
         "reused":    bool(existing_customer),
     }
+    if invite_payload:
+        result["invite"] = invite_payload
+    return result
 
 @fastapi_app.post("/api/leads/from-vin")
 async def create_lead_from_vin(data: Dict[str, Any] = Body(...)):
@@ -19425,6 +19565,7 @@ async def create_lead_from_vin(data: Dict[str, Any] = Body(...)):
 
 @fastapi_app.post("/api/customers")
 async def create_customer(
+    request: Request,
     data: Dict[str, Any] = Body(...),
     current_user: Dict[str, Any] = Depends(require_user),
 ):
@@ -19516,7 +19657,336 @@ async def create_customer(
     except Exception as _folder_err:  # never block customer creation on folder seed failure
         logger.warning(f"[customers.create] failed to seed system folders for {customer['id']}: {_folder_err}")
 
-    return {"success": True, "customer": customer, "data": customer}
+    # ── Cross-cutting onboarding — optional 30-day invite ────────────────
+    # When staff create a client with just an email, they can fire an invite
+    # so the client sets a password and accesses their cabinet. Resend-backed
+    # and dry-run safe (link is always returned for staff convenience).
+    invite_payload = None
+    if data.get("sendInvite") and (customer.get("email") or "").strip():
+        try:
+            invite_payload = await _issue_customer_invite(customer, current_user, str(request.base_url))
+        except ValueError:
+            invite_payload = None
+        except Exception as _inv_err:  # never block customer creation on invite failure
+            logger.warning(f"[customers.create] invite dispatch failed for {customer['id']}: {_inv_err}")
+
+    resp = {"success": True, "customer": customer, "data": customer}
+    if invite_payload:
+        resp["invite"] = invite_payload
+    return resp
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# CROSS-CUTTING CLIENT ONBOARDING — Invite flow + staff password control
+# ----------------------------------------------------------------------------
+# Concept: a lead/customer can be created by staff (admin · team_lead · manager)
+# WITHOUT the person ever registering. To turn that CRM card into a real,
+# cabinet-capable client we issue a time-boxed INVITE: a 30-day signed link that
+# lets the client set their own password and land logged-in. Staff can also set
+# a password directly, resend invites, and fully manage the account.
+# All email goes through the shared Resend EmailChannel (dry-run safe until a
+# real API key / verified domain is connected).
+# ════════════════════════════════════════════════════════════════════════════
+
+_CUSTOMER_INVITE_TTL_DAYS = 30
+
+
+async def _issue_customer_invite(
+    customer: Dict[str, Any],
+    inviter: Optional[Dict[str, Any]],
+    base_url: str = "",
+) -> Dict[str, Any]:
+    """Create a 30-day invite token for a customer and dispatch the branded
+    invite email through the shared Resend EmailChannel.
+
+    Returns {token, invite_link, expires_at, emailSent, emailMode}.
+    Raises ValueError('customer_has_no_email') when the card has no email.
+    """
+    email = (customer.get("email") or "").strip().lower()
+    if not email:
+        raise ValueError("customer_has_no_email")
+    cid = customer.get("id") or customer.get("customerId") or customer.get("user_id")
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(days=_CUSTOMER_INVITE_TTL_DAYS)
+    token = secrets.token_urlsafe(32)
+
+    # Single live link — revoke any prior pending invites for this customer.
+    await db.customer_invites.update_many(
+        {"customerId": cid, "status": "pending"},
+        {"$set": {"status": "revoked", "revoked_at": now}},
+    )
+    await db.customer_invites.insert_one({
+        "token": token,
+        "customerId": cid,
+        "email": email,
+        "status": "pending",
+        "created_at": now,
+        "expires_at": expires_at,
+        "used_at": None,
+        "invited_by": (inviter or {}).get("id"),
+        "invited_by_name": (inviter or {}).get("name"),
+    })
+
+    # Mark the CRM card as invited (state surfaced in Customer 360).
+    await db.customers.update_one(
+        {"id": cid},
+        {"$set": {
+            "invite_status": "invited",
+            "invited_at": now.isoformat(),
+            "invited_by": (inviter or {}).get("id"),
+            "updated_at": now.isoformat(),
+        }},
+    )
+
+    # Build the public invite link (frontend route /cabinet/invite).
+    # Prefer an explicitly-configured public/frontend URL so the emailed link
+    # always points at the user-facing domain (never the internal backend host).
+    frontend_url = (os.environ.get("PUBLIC_SITE_URL") or "").rstrip("/")
+    if not frontend_url:
+        try:
+            frontend_url = await get_settings_service().resolve_frontend_url(base_url or "")
+        except Exception:
+            frontend_url = ""
+    invite_link = f"{frontend_url}/cabinet/invite?token={token}"
+
+    # Dispatch (dry-run safe — EmailChannel returns mode=dry_run with no key).
+    email_sent, email_mode = False, "dry_run"
+    try:
+        from notifications import EmailChannel
+        from app.services.customer_email_templates import render_invite_email
+        subject, html, text = render_invite_email(
+            invite_link,
+            name=customer.get("name") or customer.get("firstName") or "",
+            ttl_days=_CUSTOMER_INVITE_TTL_DAYS,
+            inviter_name=(inviter or {}).get("name") or "",
+        )
+        res = await EmailChannel(db).send(
+            to=email, subject=subject, html=html, text=text,
+            event="customer_invite", context={"customerId": cid, "email": email},
+        )
+        email_sent = bool(res.get("ok"))
+        email_mode = res.get("mode", "dry_run")
+    except Exception as exc:
+        logger.warning("[customer-invite] email dispatch failed for %s: %s", email, exc)
+
+    logger.info("[customer-invite] issued for cid=%s email=%s mode=%s link=%s",
+                cid, email, email_mode, invite_link)
+    return {
+        "token": token,
+        "invite_link": invite_link,
+        "expires_at": expires_at.isoformat(),
+        "emailSent": email_sent,
+        "emailMode": email_mode,
+    }
+
+
+@fastapi_app.post("/api/customers/{customer_id}/invite")
+async def invite_customer(
+    customer_id: str,
+    request: Request,
+    data: Dict[str, Any] = Body(default={}),
+    current_user: Dict[str, Any] = Depends(require_manager_or_admin),
+):
+    """Send (or resend) a 30-day cabinet invite to a client.
+
+    Open to admin · team_lead · manager (manager: own customers only).
+    Optionally accepts ``email`` in the body to set/correct it first.
+    """
+    cust = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not cust:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    if not _can_user_see_customer(current_user, cust):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    new_email = (data.get("email") or "").strip().lower()
+    if new_email and new_email != (cust.get("email") or "").strip().lower():
+        await db.customers.update_one({"id": customer_id}, {"$set": {"email": new_email}})
+        cust["email"] = new_email
+    if not (cust.get("email") or "").strip():
+        raise HTTPException(status_code=422, detail="customer_email_required")
+
+    try:
+        result = await _issue_customer_invite(cust, current_user, str(request.base_url))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="customer_email_required")
+    return {"success": True, **result}
+
+
+@fastapi_app.post("/api/customers/{customer_id}/set-password")
+async def staff_set_customer_password(
+    customer_id: str,
+    data: Dict[str, Any] = Body(...),
+    current_user: Dict[str, Any] = Depends(require_manager_or_admin),
+):
+    """Staff sets/resets a client's cabinet password directly.
+
+    admin · team_lead · manager (own customers). Use when the client cannot or
+    should not go through the email invite (e.g. set over the phone).
+    """
+    cust = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not cust:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    if not _can_user_see_customer(current_user, cust):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    new_password = (data.get("password") or data.get("newPassword") or "").strip()
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    now = datetime.now(timezone.utc)
+    await db.customers.update_one({"id": customer_id}, {"$set": {
+        "password": _legacy_sha256(new_password),
+        "password_updated_at": now.isoformat(),
+        "invite_status": "accepted",
+        "updated_at": now.isoformat(),
+    }})
+    # Credentials now exist → retire any pending invites.
+    await db.customer_invites.update_many(
+        {"customerId": customer_id, "status": "pending"},
+        {"$set": {"status": "revoked", "revoked_at": now}},
+    )
+    if data.get("logoutAll"):
+        try:
+            await db.customer_sessions.delete_many(
+                {"$or": [{"customerId": customer_id}, {"user_id": customer_id}]}
+            )
+        except Exception:
+            pass
+    return {"success": True, "customerId": customer_id}
+
+
+@fastapi_app.get("/api/customers/{customer_id}/account")
+async def get_customer_account(
+    customer_id: str,
+    current_user: Dict[str, Any] = Depends(require_user),
+):
+    """Account/access state for the Customer 360 access panel."""
+    cust = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not cust:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    if not _can_user_see_customer(current_user, cust):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    has_password = bool(cust.get("password"))
+    pending = await db.customer_invites.find_one(
+        {"customerId": customer_id, "status": "pending"},
+        {"_id": 0},
+        sort=[("created_at", -1)],
+    )
+    pending_info = None
+    if pending:
+        exp = pending.get("expires_at")
+        exp_s = exp.isoformat() if isinstance(exp, datetime) else exp
+        is_expired = False
+        try:
+            _exp = exp if isinstance(exp, datetime) else datetime.fromisoformat(str(exp))
+            if _exp.tzinfo is None:
+                _exp = _exp.replace(tzinfo=timezone.utc)
+            is_expired = _exp < datetime.now(timezone.utc)
+        except Exception:
+            is_expired = False
+        pending_info = {"expires_at": exp_s, "email": pending.get("email"), "expired": is_expired}
+
+    if has_password:
+        state = "active"
+    elif pending_info and not pending_info.get("expired"):
+        state = "invited"
+    elif pending_info and pending_info.get("expired"):
+        state = "invite_expired"
+    else:
+        state = "no_access"
+
+    return {
+        "success": True,
+        "customerId": customer_id,
+        "email": cust.get("email"),
+        "hasPassword": has_password,
+        "state": state,
+        "inviteStatus": cust.get("invite_status"),
+        "invitedAt": cust.get("invited_at"),
+        "pendingInvite": pending_info,
+        "authProvider": ("google" if cust.get("google_id") else ("password" if has_password else None)),
+    }
+
+
+@fastapi_app.get("/api/customer-auth/validate-invite")
+async def validate_customer_invite(token: str):
+    """PUBLIC — validate an invite token before showing the set-password form."""
+    row = await db.customer_invites.find_one({"token": token}, {"_id": 0})
+    if not row:
+        return {"valid": False, "reason": "not_found"}
+    if row.get("status") != "pending" or row.get("used_at"):
+        return {"valid": False, "reason": "used_or_revoked"}
+    exp = row.get("expires_at")
+    if isinstance(exp, str):
+        try:
+            exp = datetime.fromisoformat(exp)
+        except Exception:
+            exp = None
+    if isinstance(exp, datetime):
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        if exp < datetime.now(timezone.utc):
+            return {"valid": False, "reason": "expired"}
+    cust = await db.customers.find_one({"id": row.get("customerId")}, {"_id": 0}) or {}
+    return {
+        "valid": True,
+        "email": row.get("email"),
+        "name": cust.get("name") or cust.get("firstName") or "",
+    }
+
+
+@fastapi_app.post("/api/customer-auth/accept-invite")
+async def accept_customer_invite(data: Dict[str, Any] = Body(...)):
+    """PUBLIC — consume an invite token, set a password, return a live session.
+
+    On success the client is fully onboarded and logged in (same session shape
+    as login / reset-password).
+    """
+    token = (data.get("token") or "").strip()
+    new_password = (data.get("password") or "").strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Token required")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    row = await db.customer_invites.find_one({"token": token})
+    if not row or row.get("status") != "pending" or row.get("used_at"):
+        raise HTTPException(status_code=400, detail="Invalid or already-used invitation")
+    exp = row.get("expires_at")
+    if isinstance(exp, str):
+        try:
+            exp = datetime.fromisoformat(exp)
+        except Exception:
+            exp = None
+    if isinstance(exp, datetime):
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        if exp < datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="Invitation expired")
+
+    cid = row.get("customerId")
+    cust = await db.customers.find_one({"id": cid}, {"_id": 0})
+    if not cust:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    now = datetime.now(timezone.utc)
+    keep_status = cust.get("status") if cust.get("status") not in (None, "") else "active"
+    await db.customers.update_one({"id": cid}, {"$set": {
+        "password": _legacy_sha256(new_password),
+        "password_updated_at": now.isoformat(),
+        "invite_status": "accepted",
+        "invite_accepted_at": now.isoformat(),
+        "status": keep_status,
+        "updated_at": now.isoformat(),
+    }})
+    await db.customer_invites.update_one(
+        {"token": token}, {"$set": {"status": "accepted", "used_at": now}}
+    )
+    session_token = await _create_customer_session(cid)
+    cust = await db.customers.find_one({"id": cid}, {"_id": 0}) or cust
+    return _customer_response(cust, session_token)
+
 
 @fastapi_app.put("/api/customers/{customer_id}")
 async def update_customer(
@@ -19630,14 +20100,31 @@ async def update_customer(
 @fastapi_app.delete("/api/customers/{customer_id}")
 async def delete_customer(
     customer_id: str,
-    current_user: Dict[str, Any] = Depends(require_admin),  # noqa: F841
+    current_user: Dict[str, Any] = Depends(require_manager_or_admin),
 ):
-    """Delete customer — admin only.
+    """Delete customer — cross-cutting (admin · team_lead · manager).
 
-    We hard-delete from ``db.customers``. Related deals / leads keep
-    their ``customerId`` reference (orphaned, but historically auditable).
+    Managers may only delete customers they own; admin / team_lead may delete
+    any. Related deals / leads keep their ``customerId`` reference (orphaned,
+    but historically auditable). Pending invites + live sessions are purged.
     """
+    cust = await db.customers.find_one({"id": customer_id}, {"_id": 0})
+    if not cust:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    if not _can_user_see_customer(current_user, cust):
+        raise HTTPException(status_code=403, detail="Forbidden")
     result = await db.customers.delete_one({"id": customer_id})
+    # Best-effort cleanup of access artifacts.
+    try:
+        await db.customer_invites.update_many(
+            {"customerId": customer_id, "status": "pending"},
+            {"$set": {"status": "revoked", "revoked_at": datetime.now(timezone.utc)}},
+        )
+        await db.customer_sessions.delete_many(
+            {"$or": [{"customerId": customer_id}, {"user_id": customer_id}]}
+        )
+    except Exception:
+        pass
     return {"success": True, "deleted": result.deleted_count}
 
 @fastapi_app.get("/api/customers/{customer_id}")

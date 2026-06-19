@@ -92,21 +92,25 @@ export const SOURCE_LABELS = {
     website: 'Сайт', referral: 'Рекомендація', social_media: 'Соцмережі',
     cold_call: 'Холодний дзвінок', advertisement: 'Реклама',
     partner: 'Партнер', other: 'Інше',
+    phone: 'Телефонний дзвінок', manual: 'Створено вручну', import: 'Імпорт',
   },
   en: {
     website: 'Website', referral: 'Referral', social_media: 'Social media',
     cold_call: 'Cold call', advertisement: 'Advertisement',
     partner: 'Partner', other: 'Other',
+    phone: 'Phone call', manual: 'Created manually', import: 'Import',
   },
   ru: {
     website: 'Сайт', referral: 'Рекомендация', social_media: 'Соцсети',
     cold_call: 'Холодный звонок', advertisement: 'Реклама',
     partner: 'Партнер', other: 'Другое',
+    phone: 'Телефонный звонок', manual: 'Создано вручную', import: 'Импорт',
   },
   bg: {
     website: 'Сайт', referral: 'Препоръка', social_media: 'Соц. мрежи',
     cold_call: 'Студено обаждане', advertisement: 'Реклама',
     partner: 'Партньор', other: 'Друго',
+    phone: 'Телефонно обаждане', manual: 'Създадено ръчно', import: 'Импорт',
   },
 };
 

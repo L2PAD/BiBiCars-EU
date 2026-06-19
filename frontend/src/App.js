@@ -44,6 +44,7 @@ import CustomerLoginPage, { CustomerAuthProvider, CustomerProtectedRoute, AuthCa
 import SingleCarPage from './pages/public/SingleCarPage/SingleCarPage';
 import ForgotPasswordPage from './pages/public/ForgotPasswordPage';
 import ResetPasswordPage from './pages/public/ResetPasswordPage';
+import InviteAcceptPage from './pages/public/InviteAcceptPage';
 import { CollectionsPage, CollectionDetailPage } from './pages/public/CollectionsPage';
 import AboutPage from './pages/public/AboutPage';
 import ContactsPage from './pages/public/ContactsPage';
@@ -540,6 +541,7 @@ function App() {
             <Route path="/cabinet/auth/callback" element={<AuthCallback />} />
             <Route path="/cabinet/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/cabinet/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/cabinet/invite" element={<InviteAcceptPage />} />
             {/* Mini Sprint Contracts Final — public contract sign page (no auth, view_token grants access) */}
             <Route path="/cabinet/contracts/:token" element={<CabinetContractSign />} />
             
